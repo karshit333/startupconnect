@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import Navbar from '@/components/Navbar'
@@ -27,179 +27,130 @@ export default function UsernamePage() {
 
   const cleanUsername = username?.toLowerCase()
 
-  useEffect(() => {
-    async function loadProfile() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-      setCurrentUser(user)
+  const loadProfile = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/auth/login')
+      return
+    }
+    setCurrentUser(user)
 
-      // First check if it's a user profile
-      const { data: profile } = await supabase
+    // Try to find user profile first
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', cleanUsername)
+      .single()
+
+    if (profile) {
+      setProfileData(profile)
+      
+      // If it's a startup account, get their startup
+      if (profile.role === 'startup') {
+        const { data: startup } = await supabase
+          .from('startups')
+          .select('*')
+          .eq('user_id', profile.id)
+          .single()
+        
+        if (startup) {
+          setStartupData(startup)
+          await loadStartupPosts(startup, user)
+        }
+      }
+      setLoading(false)
+      return
+    }
+
+    // Check if it's a startup username
+    const { data: startup } = await supabase
+      .from('startups')
+      .select('*')
+      .eq('username', cleanUsername)
+      .single()
+
+    if (startup) {
+      setStartupData(startup)
+      
+      // Get owner profile
+      const { data: ownerProfile } = await supabase
         .from('profiles')
         .select('*')
-        .eq('username', cleanUsername)
+        .eq('id', startup.user_id)
         .single()
+      setProfileData(ownerProfile)
 
-      if (profile) {
-        setProfileData(profile)
-        
-        // If it's a startup account, also get their startup
-        if (profile.role === 'startup') {
-          const { data: startup } = await supabase
-            .from('startups')
-            .select('*')
-            .eq('user_id', profile.id)
-            .single()
-          
-          if (startup) {
-            setStartupData(startup)
-            
-            // Get startup posts
-            const { data: postsData } = await supabase
-              .from('posts')
-              .select(`
-                *,
-                startups (id, name, logo_url, domain, username),
-                likes (user_id),
-                comments (id, content, created_at, user_id)
-              `)
-              .eq('startup_id', startup.id)
-              .order('created_at', { ascending: false })
-
-            // Fetch profiles for comments
-            const processedPosts = await Promise.all((postsData || []).map(async (post) => {
-              const commentUserIds = [...new Set(post.comments?.map(c => c.user_id) || [])]
-              
-              let profilesMap = {}
-              if (commentUserIds.length > 0) {
-                const { data: profiles } = await supabase
-                  .from('profiles')
-                  .select('id, full_name, avatar_url, username')
-                  .in('id', commentUserIds)
-                
-                profiles?.forEach(p => { profilesMap[p.id] = p })
-              }
-
-              const commentsWithProfiles = post.comments?.map(comment => ({
-                ...comment,
-                profiles: profilesMap[comment.user_id] || null
-              })) || []
-
-              return {
-                ...post,
-                comments: commentsWithProfiles,
-                likes_count: post.likes?.length || 0,
-                user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
-              }
-            }))
-            setPosts(processedPosts)
-
-            // Check if following
-            const { data: follow } = await supabase
-              .from('follows')
-              .select('id')
-              .eq('user_id', user.id)
-              .eq('startup_id', startup.id)
-              .maybeSingle()
-            setIsFollowing(!!follow)
-
-            // Get followers count
-            const { count } = await supabase
-              .from('follows')
-              .select('id', { count: 'exact' })
-              .eq('startup_id', startup.id)
-            setFollowersCount(count || 0)
-          }
-        }
-        setLoading(false)
-        return
-      }
-
-      // Check if it's a startup username
-      const { data: startup } = await supabase
-        .from('startups')
-        .select('*')
-        .eq('username', cleanUsername)
-        .single()
-
-      if (startup) {
-        setStartupData(startup)
-        
-        // Get owner profile
-        const { data: ownerProfile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', startup.user_id)
-          .single()
-        setProfileData(ownerProfile)
-
-        // Get posts
-        const { data: postsData } = await supabase
-          .from('posts')
-          .select(`
-            *,
-            startups (id, name, logo_url, domain, username),
-            likes (user_id),
-            comments (id, content, created_at, user_id)
-          `)
-          .eq('startup_id', startup.id)
-          .order('created_at', { ascending: false })
-
-        // Fetch profiles for comments
-        const processedPosts = await Promise.all((postsData || []).map(async (post) => {
-          const commentUserIds = [...new Set(post.comments?.map(c => c.user_id) || [])]
-          
-          let profilesMap = {}
-          if (commentUserIds.length > 0) {
-            const { data: profiles } = await supabase
-              .from('profiles')
-              .select('id, full_name, avatar_url, username')
-              .in('id', commentUserIds)
-            
-            profiles?.forEach(p => { profilesMap[p.id] = p })
-          }
-
-          const commentsWithProfiles = post.comments?.map(comment => ({
-            ...comment,
-            profiles: profilesMap[comment.user_id] || null
-          })) || []
-
-          return {
-            ...post,
-            comments: commentsWithProfiles,
-            likes_count: post.likes?.length || 0,
-            user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
-          }
-        }))
-        setPosts(processedPosts)
-
-        // Check follow status
-        const { data: follow } = await supabase
-          .from('follows')
-          .select('id')
-          .eq('user_id', user.id)
-          .eq('startup_id', startup.id)
-          .maybeSingle()
-        setIsFollowing(!!follow)
-
-        const { count } = await supabase
-          .from('follows')
-          .select('id', { count: 'exact' })
-          .eq('startup_id', startup.id)
-        setFollowersCount(count || 0)
-
-        setLoading(false)
-        return
-      }
-
-      // Not found
+      await loadStartupPosts(startup, user)
       setLoading(false)
+      return
     }
+
+    // Not found
+    setLoading(false)
+  }, [cleanUsername, router, supabase])
+
+  const loadStartupPosts = async (startup, user) => {
+    // Fetch posts, follow status, and followers count in parallel
+    const [postsResult, followResult, followersResult] = await Promise.all([
+      supabase.from('posts').select(`
+        *,
+        startups (id, name, logo_url, domain, username),
+        likes (user_id),
+        comments (id, content, created_at, user_id)
+      `).eq('startup_id', startup.id).order('created_at', { ascending: false }),
+      supabase.from('follows').select('id').eq('user_id', user.id).eq('startup_id', startup.id).maybeSingle(),
+      supabase.from('follows').select('id', { count: 'exact' }).eq('startup_id', startup.id)
+    ])
+
+    setIsFollowing(!!followResult.data)
+    setFollowersCount(followersResult.count || 0)
+
+    // Batch fetch comment author profiles
+    const postsData = postsResult.data || []
+    const allCommentUserIds = new Set()
+    postsData.forEach(post => {
+      post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
+    })
+
+    let profilesMap = {}
+    if (allCommentUserIds.size > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, username')
+        .in('id', Array.from(allCommentUserIds))
+      
+      profiles?.forEach(p => { profilesMap[p.id] = p })
+    }
+
+    // Fetch saved posts status
+    const postIds = postsData.map(p => p.id)
+    let savedPostsSet = new Set()
+    if (postIds.length > 0) {
+      const { data: savedPosts } = await supabase
+        .from('saved_posts')
+        .select('post_id')
+        .eq('user_id', user.id)
+        .in('post_id', postIds)
+      
+      savedPosts?.forEach(sp => savedPostsSet.add(sp.post_id))
+    }
+
+    const processedPosts = postsData.map(post => ({
+      ...post,
+      comments: post.comments?.map(comment => ({
+        ...comment,
+        profiles: profilesMap[comment.user_id] || null
+      })) || [],
+      likes_count: post.likes?.length || 0,
+      user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
+      user_has_saved: savedPostsSet.has(post.id)
+    }))
+    setPosts(processedPosts)
+  }
+
+  useEffect(() => {
     loadProfile()
-  }, [cleanUsername])
+  }, [loadProfile])
 
   const toggleFollow = async () => {
     if (!startupData) return
