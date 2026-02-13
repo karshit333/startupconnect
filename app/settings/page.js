@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { Settings, User, Lock, Bell, Loader2, Camera } from 'lucide-react'
+import { Settings, User, Lock, Loader2, Camera } from 'lucide-react'
 import { toast } from 'sonner'
 
 export default function SettingsPage() {
@@ -20,11 +20,7 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [uploading, setUploading] = useState(false)
-  const [formData, setFormData] = useState({
-    full_name: '',
-    bio: '',
-    skills: '',
-  })
+  const [formData, setFormData] = useState({ full_name: '', bio: '', skills: '' })
   const router = useRouter()
   const supabase = createClient()
 
@@ -37,12 +33,7 @@ export default function SettingsPage() {
       }
       setUser(user)
 
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-      
+      const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
       setProfile(profileData)
       setFormData({
         full_name: profileData?.full_name || '',
@@ -52,7 +43,7 @@ export default function SettingsPage() {
       setLoading(false)
     }
     init()
-  }, [router, supabase])
+  }, [])
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0]
@@ -63,27 +54,17 @@ export default function SettingsPage() {
       const fileExt = file.name.split('.').pop()
       const fileName = `${user.id}.${fileExt}`
 
-      const { error: uploadError } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, { upsert: true })
-
+      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file, { upsert: true })
       if (uploadError) throw uploadError
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName)
+      const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(fileName)
 
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ avatar_url: publicUrl })
-        .eq('id', user.id)
-
+      const { error: updateError } = await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', user.id)
       if (updateError) throw updateError
 
       setProfile({ ...profile, avatar_url: publicUrl })
       toast.success('Avatar updated!')
     } catch (error) {
-      console.error('Upload error:', error)
       toast.error('Failed to upload avatar')
     } finally {
       setUploading(false)
@@ -93,18 +74,14 @@ export default function SettingsPage() {
   const handleSaveProfile = async () => {
     setSaving(true)
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          full_name: formData.full_name,
-          bio: formData.bio,
-          skills: formData.skills.split(',').map(s => s.trim()).filter(Boolean),
-          updated_at: new Date().toISOString(),
-        })
-        .eq('id', user.id)
+      const { error } = await supabase.from('profiles').update({
+        full_name: formData.full_name,
+        bio: formData.bio,
+        skills: formData.skills.split(',').map(s => s.trim()).filter(Boolean),
+        updated_at: new Date().toISOString(),
+      }).eq('id', user.id)
 
       if (error) throw error
-
       toast.success('Profile updated!')
     } catch (error) {
       toast.error('Failed to update profile')
@@ -113,67 +90,44 @@ export default function SettingsPage() {
     }
   }
 
-  const getInitials = (name) => {
-    return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
-  }
+  const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-background">
         <Navbar />
         <div className="container mx-auto px-4 py-6">
-          <div className="max-w-2xl mx-auto">
-            <div className="bg-white rounded-lg p-6 h-96 skeleton-shimmer" />
-          </div>
+          <div className="max-w-2xl mx-auto bg-card rounded-lg border border-border p-6 h-96 skeleton" />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6">
         <div className="max-w-2xl mx-auto space-y-6">
-          {/* Header */}
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <Settings className="h-6 w-6" />
-              Settings
-            </h1>
-            <p className="text-muted-foreground">Manage your account settings</p>
+            <h1 className="text-2xl font-semibold flex items-center gap-2"><Settings className="h-6 w-6" />Settings</h1>
+            <p className="text-muted-foreground text-sm">Manage your account</p>
           </div>
 
-          {/* Profile Settings */}
-          <Card>
+          <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Profile
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2"><User className="h-5 w-5" />Profile</CardTitle>
               <CardDescription>Update your profile information</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
-              {/* Avatar */}
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <Avatar className="h-20 w-20">
                     <AvatarImage src={profile?.avatar_url} />
-                    <AvatarFallback className="text-xl">{getInitials(profile?.full_name)}</AvatarFallback>
+                    <AvatarFallback className="text-xl bg-white/10">{getInitials(profile?.full_name)}</AvatarFallback>
                   </Avatar>
-                  <label className="absolute bottom-0 right-0 bg-primary text-primary-foreground rounded-full p-1.5 cursor-pointer hover:bg-primary/90">
-                    {uploading ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Camera className="h-4 w-4" />
-                    )}
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={handleAvatarUpload}
-                      className="hidden"
-                      disabled={uploading}
-                    />
+                  <label className="absolute bottom-0 right-0 bg-white text-background rounded-full p-1.5 cursor-pointer hover:bg-white/90">
+                    {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
+                    <input type="file" accept="image/*" onChange={handleAvatarUpload} className="hidden" disabled={uploading} />
                   </label>
                 </div>
                 <div>
@@ -183,99 +137,41 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <Separator />
+              <Separator className="bg-border" />
 
-              {/* Form */}
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="full_name">Full Name</Label>
-                  <Input
-                    id="full_name"
-                    value={formData.full_name}
-                    onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                    placeholder="Your full name"
-                  />
+                  <Label>Full Name</Label>
+                  <Input value={formData.full_name} onChange={(e) => setFormData({ ...formData, full_name: e.target.value })} className="bg-secondary border-0" />
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="bio">Bio</Label>
-                  <Textarea
-                    id="bio"
-                    value={formData.bio}
-                    onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-                    placeholder="Tell us about yourself..."
-                    rows={3}
-                  />
+                  <Label>Bio</Label>
+                  <Textarea value={formData.bio} onChange={(e) => setFormData({ ...formData, bio: e.target.value })} rows={3} className="bg-secondary border-0 resize-none" />
                 </div>
-
                 <div className="space-y-2">
-                  <Label htmlFor="skills">Skills (comma-separated)</Label>
-                  <Input
-                    id="skills"
-                    value={formData.skills}
-                    onChange={(e) => setFormData({ ...formData, skills: e.target.value })}
-                    placeholder="React, Node.js, Product Management"
-                  />
+                  <Label>Skills (comma-separated)</Label>
+                  <Input value={formData.skills} onChange={(e) => setFormData({ ...formData, skills: e.target.value })} className="bg-secondary border-0" />
                 </div>
-
-                <Button onClick={handleSaveProfile} disabled={saving}>
-                  {saving ? (
-                    <>
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    'Save Changes'
-                  )}
+                <Button onClick={handleSaveProfile} disabled={saving} className="bg-white text-background hover:bg-white/90">
+                  {saving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : 'Save Changes'}
                 </Button>
               </div>
             </CardContent>
           </Card>
 
-          {/* Account Settings */}
-          <Card>
+          <Card className="bg-card border-border">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Lock className="h-5 w-5" />
-                Account
-              </CardTitle>
+              <CardTitle className="flex items-center gap-2"><Lock className="h-5 w-5" />Account</CardTitle>
               <CardDescription>Manage your account security</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Email</p>
-                  <p className="text-sm text-muted-foreground">{user?.email}</p>
-                </div>
+                <div><p className="font-medium">Email</p><p className="text-sm text-muted-foreground">{user?.email}</p></div>
               </div>
-              <Separator />
+              <Separator className="bg-border" />
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Password</p>
-                  <p className="text-sm text-muted-foreground">••••••••</p>
-                </div>
-                <Button variant="outline" size="sm" disabled>
-                  Change Password
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Danger Zone */}
-          <Card className="border-red-200">
-            <CardHeader>
-              <CardTitle className="text-red-600">Danger Zone</CardTitle>
-              <CardDescription>Irreversible actions</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-medium">Delete Account</p>
-                  <p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
-                </div>
-                <Button variant="destructive" size="sm" disabled>
-                  Delete Account
-                </Button>
+                <div><p className="font-medium">Password</p><p className="text-sm text-muted-foreground">••••••••</p></div>
+                <Button variant="outline" size="sm" disabled className="border-white/20">Change</Button>
               </div>
             </CardContent>
           </Card>
