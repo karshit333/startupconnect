@@ -1,31 +1,25 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+import { useUser } from '@/lib/context/UserContext'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowRight, Building2, MessageSquare, Calendar, Users, Zap, Shield, Globe } from 'lucide-react'
 
 export default function LandingPage() {
-  const [user, setUser] = useState(null)
-  const [loading, setLoading] = useState(true)
+  const { user, isInitialized, isLoading } = useUser()
   const router = useRouter()
-  const supabase = createClient()
 
   useEffect(() => {
-    async function checkUser() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (user) {
-        router.push('/feed')
-      } else {
-        setLoading(false)
-      }
+    // Redirect to feed if already logged in
+    if (isInitialized && user) {
+      router.push('/feed')
     }
-    checkUser()
-  }, [router, supabase])
+  }, [isInitialized, user, router])
 
-  if (loading) {
+  // Show loading while checking auth
+  if (!isInitialized || isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="flex flex-col items-center gap-4">
@@ -34,6 +28,11 @@ export default function LandingPage() {
         </div>
       </div>
     )
+  }
+
+  // If user is logged in, show nothing while redirecting
+  if (user) {
+    return null
   }
 
   return (
