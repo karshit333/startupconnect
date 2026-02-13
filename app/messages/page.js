@@ -138,15 +138,16 @@ function MessagesContent() {
     init()
   }, [initialChatId, loadConversations, router, supabase])
 
-  const loadMessages = async (convoId) => {
-    const { data: messagesRaw, error: msgError } = await supabase
+  const loadMessages = async (convoId, user = currentUser) => {
+    if (!user) return
+    
+    const { data: messagesRaw } = await supabase
       .from('messages')
       .select('*')
       .eq('conversation_id', convoId)
       .order('created_at', { ascending: true })
     
-    if (msgError) {
-      console.error('Error loading messages:', msgError)
+    if (!messagesRaw || messagesRaw.length === 0) {
       setMessages([])
       return
     }
@@ -156,17 +157,21 @@ function MessagesContent() {
       .from('messages')
       .update({ is_read: true })
       .eq('conversation_id', convoId)
-      .neq('sender_id', currentUser.id)
+      .neq('sender_id', user.id)
 
-    // Fetch sender profiles
-    const messagesWithSender = await Promise.all((messagesRaw || []).map(async (msg) => {
-      const { data: senderProfile } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, username')
-        .eq('id', msg.sender_id)
-        .single()
-      
-      return { ...msg, sender: senderProfile }
+    // Batch fetch sender profiles
+    const senderIds = [...new Set(messagesRaw.map(m => m.sender_id))]
+    const { data: senderProfiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, username')
+      .in('id', senderIds)
+
+    const profilesMap = {}
+    senderProfiles?.forEach(p => { profilesMap[p.id] = p })
+
+    const messagesWithSender = messagesRaw.map(msg => ({
+      ...msg,
+      sender: profilesMap[msg.sender_id] || null
     }))
 
     setMessages(messagesWithSender)
