@@ -121,19 +121,28 @@ function MessagesContent() {
 
     setSendingMessage(true)
     try {
-      const { data, error } = await supabase
+      const { data: msgData, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: selectedConvo.id,
           sender_id: currentUser.id,
           content: newMessage.trim(),
         })
-        .select(`*, sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)`)
+        .select()
         .single()
 
       if (error) throw error
 
-      setMessages(prev => [...prev, data])
+      // Get sender profile
+      const { data: senderProfile } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .eq('id', currentUser.id)
+        .single()
+
+      const messageWithSender = { ...msgData, sender: senderProfile }
+
+      setMessages(prev => [...prev, messageWithSender])
       setNewMessage('')
 
       await supabase
