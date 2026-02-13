@@ -9,7 +9,7 @@ import FeedSkeleton, { CardSkeleton } from '@/components/FeedSkeleton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { TrendingUp, Calendar, Users, ArrowRight, Bookmark } from 'lucide-react'
+import { TrendingUp, Calendar, Users, ArrowRight, Bookmark, Clock } from 'lucide-react'
 import Link from 'next/link'
 
 // Module-level cache for feed data - persists across navigations
