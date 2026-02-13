@@ -84,20 +84,14 @@ export default function CreatePostDialog({ open, onOpenChange, startup, onPostCr
         })
         .select(`
           *,
-          startups (id, name, logo_url, domain, username),
-          likes (user_id),
-          comments (
-            id,
-            content,
-            created_at,
-            profiles:user_id (full_name, avatar_url, username)
-          )
+          startups (id, name, logo_url, domain, username)
         `)
         .single()
 
       if (error) throw error
 
-      onPostCreated?.({ ...data, likes_count: 0, user_has_liked: false })
+      // Return post with empty arrays for new post
+      onPostCreated?.({ ...data, likes: [], comments: [], likes_count: 0, user_has_liked: false })
       setContent('')
       setImages([])
       onOpenChange(false)
