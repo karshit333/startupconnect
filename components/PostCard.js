@@ -188,7 +188,7 @@ export default function PostCard({ post, currentUserId, onPostUpdate }) {
                 <h3 className="text-sm font-semibold group-hover:underline">{post.startups?.name}</h3>
                 <p className="text-xs text-muted-foreground capitalize">{post.startups?.domain}</p>
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                  {post.created_at ? formatDistanceToNow(new Date(post.created_at), { addSuffix: true }) : 'Just now'}
                   <Globe className="h-3 w-3" />
                 </p>
               </div>
