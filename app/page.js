@@ -176,10 +176,7 @@ export default function LandingPage() {
       <footer className="border-t border-border py-8">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-2 mb-4">
-            <div className="w-7 h-7 bg-white rounded flex items-center justify-center">
-              <span className="text-background font-bold text-sm">SC</span>
-            </div>
-            <span className="font-medium">Startup Connect India</span>
+            <img src="/logo.png" alt="SUCI" className="h-6" />
           </div>
           <p className="text-sm text-muted-foreground">© 2025 Startup Connect India. Built for the Indian startup ecosystem.</p>
         </div>
