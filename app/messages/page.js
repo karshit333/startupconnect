@@ -15,11 +15,12 @@ import { Send, MessageSquare, Inbox, Clock, Check, CheckCheck } from 'lucide-rea
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 
-// Module-level cache for conversations
+// Module-level cache for conversations - persists across navigations
 const messagesCache = {
   conversations: [],
   pending: [],
-  lastFetch: 0
+  lastFetch: 0,
+  profilesMap: {}
 }
 
 function MessagesContent() {
@@ -27,7 +28,7 @@ function MessagesContent() {
   const initialChatId = searchParams.get('chat')
   const { user, supabase, isInitialized, markMessagesAsRead } = useUser()
   
-  // Initialize with cached data
+  // Initialize with cached data for INSTANT display
   const [conversations, setConversations] = useState(messagesCache.conversations)
   const [pendingConversations, setPendingConversations] = useState(messagesCache.pending)
   const [selectedConvo, setSelectedConvo] = useState(null)
@@ -39,6 +40,13 @@ function MessagesContent() {
   const messagesEndRef = useRef(null)
   const router = useRouter()
   const fetchingRef = useRef(false)
+  const mountedRef = useRef(true)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   // Redirect if not logged in
   useEffect(() => {
@@ -47,19 +55,21 @@ function MessagesContent() {
     }
   }, [isInitialized, user, router])
 
+  // OPTIMIZED: Load conversations with aggressive caching
   const loadConversations = useCallback(async (forceRefresh = false) => {
     if (!user || !supabase) return []
     if (fetchingRef.current) return messagesCache.conversations.concat(messagesCache.pending)
     
-    // Use cache if recent
+    // Use cache if recent (within 15 seconds)
     const now = Date.now()
-    if (!forceRefresh && messagesCache.conversations.length > 0 && (now - messagesCache.lastFetch) < 10000) {
+    if (!forceRefresh && messagesCache.conversations.length > 0 && (now - messagesCache.lastFetch) < 15000) {
       return messagesCache.conversations.concat(messagesCache.pending)
     }
 
     fetchingRef.current = true
 
     try {
+      // OPTIMIZED: Fetch conversations
       const { data: convosRaw } = await supabase
         .from('conversations')
         .select('*')
@@ -70,8 +80,10 @@ function MessagesContent() {
         messagesCache.conversations = []
         messagesCache.pending = []
         messagesCache.lastFetch = Date.now()
-        setConversations([])
-        setPendingConversations([])
+        if (mountedRef.current) {
+          setConversations([])
+          setPendingConversations([])
+        }
         return []
       }
 
@@ -82,30 +94,25 @@ function MessagesContent() {
         if (c.participant_2 !== user.id) participantIds.add(c.participant_2)
       })
 
-      // Batch fetch all participant profiles
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, username')
-        .in('id', Array.from(participantIds))
-
-      const profilesMap = {}
-      profiles?.forEach(p => { profilesMap[p.id] = p })
-
-      // Get conversation IDs for batch queries
       const convoIds = convosRaw.map(c => c.id)
 
-      // Batch fetch last messages for all conversations
-      const { data: allMessages } = await supabase
-        .from('messages')
-        .select('*')
-        .in('conversation_id', convoIds)
-        .order('created_at', { ascending: false })
+      // OPTIMIZED: Parallel fetch for profiles and messages
+      const [profilesResult, messagesResult] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, avatar_url, username').in('id', Array.from(participantIds)),
+        supabase.from('messages').select('*').in('conversation_id', convoIds).order('created_at', { ascending: false })
+      ])
+
+      if (!mountedRef.current) return []
+
+      const profilesMap = {}
+      profilesResult.data?.forEach(p => { profilesMap[p.id] = p })
+      messagesCache.profilesMap = { ...messagesCache.profilesMap, ...profilesMap }
 
       // Group messages by conversation
       const lastMessageByConvo = {}
       const unreadCountByConvo = {}
       
-      allMessages?.forEach(msg => {
+      messagesResult.data?.forEach(msg => {
         if (!lastMessageByConvo[msg.conversation_id]) {
           lastMessageByConvo[msg.conversation_id] = msg
         }
@@ -138,8 +145,10 @@ function MessagesContent() {
       messagesCache.pending = pending
       messagesCache.lastFetch = Date.now()
 
-      setConversations(accepted)
-      setPendingConversations(pending)
+      if (mountedRef.current) {
+        setConversations(accepted)
+        setPendingConversations(pending)
+      }
 
       return processedConvos
     } finally {
