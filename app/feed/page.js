@@ -72,7 +72,7 @@ export default function FeedPage() {
           id, content, image_url, created_at, startup_id,
           startups (id, name, logo_url, domain, username),
           likes (user_id),
-          comments (id)
+          comments (id, content, created_at, user_id)
         `).order('created_at', { ascending: false }).limit(20),
         supabase.from('startups').select('id, name, logo_url, domain, username').eq('is_approved', true).limit(5),
         supabase.from('events').select('id, title, event_date, city').gte('event_date', new Date().toISOString()).order('event_date', { ascending: true }).limit(3),
