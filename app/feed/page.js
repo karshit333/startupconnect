@@ -22,7 +22,7 @@ const feedCache = {
 }
 
 export default function FeedPage() {
-  const { user, profile, supabase, isInitialized } = useUser()
+  const { user, profile, startup, supabase, isInitialized } = useUser()
   // Initialize with cached data for INSTANT display
   const [posts, setPosts] = useState(feedCache.posts)
   const [trendingStartups, setTrendingStartups] = useState(feedCache.startups)
