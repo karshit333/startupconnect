@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { createClient } from '@/lib/supabase/client'
+import { useState, useMemo, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
+import { useUser } from '@/lib/context/UserContext'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,116 +14,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Home, Search, MessageSquare, Calendar, User, Building2, Settings, LogOut, Shield, ChevronDown, Bookmark, Plus } from 'lucide-react'
+import { Home, Search, MessageSquare, Calendar, Building2, Settings, LogOut, Shield, ChevronDown, Bookmark, Plus } from 'lucide-react'
 import Link from 'next/link'
 import CreatePostDialog from './CreatePostDialog'
 
 export default function Navbar() {
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
-  const [startup, setStartup] = useState(null)
-  const [unreadMessages, setUnreadMessages] = useState(0)
-  const [pendingMessages, setPendingMessages] = useState(0)
+  const { user, profile, startup, unreadMessages, pendingMessages, signOut, isLoading } = useUser()
   const [searchQuery, setSearchQuery] = useState('')
   const [createPostOpen, setCreatePostOpen] = useState(false)
   const router = useRouter()
   const pathname = usePathname()
-  const supabase = createClient()
-
-  // Memoize supabase client to prevent recreation
-  const loadUserData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (user) {
-      setUser(user)
-      
-      // Fetch profile and startup in parallel
-      const [profileResult, convosResult] = await Promise.all([
-        supabase.from('profiles').select('*').eq('id', user.id).single(),
-        supabase.from('conversations').select('id, is_accepted, participant_1').or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-      ])
-
-      const profileData = profileResult.data
-      setProfile(profileData)
-
-      // If startup role, fetch startup
-      if (profileData?.role === 'startup') {
-        const { data: startupData } = await supabase
-          .from('startups')
-          .select('*')
-          .eq('user_id', user.id)
-          .single()
-        setStartup(startupData)
-      }
-
-      // Calculate unread and pending counts
-      const convos = convosResult.data || []
-      if (convos.length > 0) {
-        // Batch fetch unread message counts for all conversations
-        const convoIds = convos.map(c => c.id)
-        const { data: unreadMessages } = await supabase
-          .from('messages')
-          .select('conversation_id')
-          .in('conversation_id', convoIds)
-          .neq('sender_id', user.id)
-          .eq('is_read', false)
-
-        // Count unread messages per conversation
-        const unreadPerConvo = {}
-        unreadMessages?.forEach(msg => {
-          unreadPerConvo[msg.conversation_id] = (unreadPerConvo[msg.conversation_id] || 0) + 1
-        })
-
-        let totalUnread = 0
-        let pending = 0
-        
-        for (const convo of convos) {
-          totalUnread += unreadPerConvo[convo.id] || 0
-          // Count pending (message requests) - initiated by others, not accepted
-          if (!convo.is_accepted && convo.participant_1 !== user.id) {
-            pending++
-          }
-        }
-        
-        setUnreadMessages(totalUnread)
-        setPendingMessages(pending)
-      } else {
-        setUnreadMessages(0)
-        setPendingMessages(0)
-      }
-    }
-  }, [supabase])
-
-  useEffect(() => {
-    loadUserData()
-    
-    // Set up real-time subscription for messages (both new messages and read status updates)
-    const channel = supabase
-      .channel('navbar-messages')
-      .on('postgres_changes', {
-        event: 'INSERT',
-        schema: 'public',
-        table: 'messages'
-      }, () => {
-        // Reload unread count when new message arrives
-        loadUserData()
-      })
-      .on('postgres_changes', {
-        event: 'UPDATE',
-        schema: 'public',
-        table: 'messages'
-      }, () => {
-        // Reload unread count when message is marked as read
-        loadUserData()
-      })
-      .subscribe()
-
-    return () => {
-      supabase.removeChannel(channel)
-    }
-  }, [loadUserData])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    await signOut()
     router.push('/')
   }
 
@@ -135,17 +37,18 @@ export default function Navbar() {
     }
   }
 
-  const handlePostCreated = (post) => {
-    // Refresh the page or update state as needed
+  const handlePostCreated = () => {
     router.refresh()
   }
+
+  const totalBadge = unreadMessages + pendingMessages
 
   const navItems = useMemo(() => [
     { href: '/feed', icon: Home, label: 'Home' },
     { href: '/search', icon: Search, label: 'Search' },
-    { href: '/messages', icon: MessageSquare, label: 'Messages', badge: unreadMessages + pendingMessages },
+    { href: '/messages', icon: MessageSquare, label: 'Messages', badge: totalBadge },
     { href: '/events', icon: Calendar, label: 'Events' },
-  ], [unreadMessages, pendingMessages])
+  ], [totalBadge])
 
   const getInitials = useCallback((name) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
@@ -154,6 +57,26 @@ export default function Navbar() {
   const isActive = useCallback((href) => pathname === href, [pathname])
 
   const canCreatePost = profile?.role === 'startup' && startup?.is_approved
+
+  // Don't render navbar if still loading initial data
+  if (isLoading && !profile) {
+    return (
+      <header className="sticky top-0 z-50 bg-card border-b border-border">
+        <div className="container mx-auto px-4">
+          <div className="flex items-center justify-between h-14">
+            <div className="flex items-center gap-3">
+              <Link href="/feed" className="flex items-center">
+                <img src="/logo.png" alt="SUCI" className="h-12" />
+              </Link>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="w-8 h-8 rounded-full skeleton" />
+            </div>
+          </div>
+        </div>
+      </header>
+    )
+  }
 
   return (
     <>
