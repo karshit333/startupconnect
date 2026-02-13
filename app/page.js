@@ -42,10 +42,7 @@ export default function LandingPage() {
       <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
-              <span className="text-background font-bold text-lg">SC</span>
-            </div>
-            <span className="text-xl font-semibold">Startup Connect</span>
+            <img src="/logo.png" alt="SUCI" className="h-8" />
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => router.push('/auth/login')}>
