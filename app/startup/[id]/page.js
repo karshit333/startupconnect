@@ -100,13 +100,29 @@ export default function StartupDetailPage() {
       return
     }
 
+    // Don't message yourself
+    if (startup.user_id === currentUser.id) {
+      toast.error('You cannot message your own startup')
+      return
+    }
+
     try {
-      // Check if conversation exists
-      const { data: existing } = await supabase
+      // Check if conversation exists - use two separate queries for reliability
+      const { data: existing1 } = await supabase
         .from('conversations')
         .select('id')
-        .or(`and(participant_1.eq.${currentUser.id},participant_2.eq.${startup.user_id}),and(participant_1.eq.${startup.user_id},participant_2.eq.${currentUser.id})`)
+        .eq('participant_1', currentUser.id)
+        .eq('participant_2', startup.user_id)
         .maybeSingle()
+
+      const { data: existing2 } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('participant_1', startup.user_id)
+        .eq('participant_2', currentUser.id)
+        .maybeSingle()
+
+      const existing = existing1 || existing2
 
       if (existing) {
         router.push(`/messages?chat=${existing.id}`)
