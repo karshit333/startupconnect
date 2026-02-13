@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
@@ -14,8 +15,8 @@ import { MapPin, Users, Globe, UserPlus, UserMinus, MessageSquare, Calendar, Che
 import { toast } from 'sonner'
 import Link from 'next/link'
 
-export default function StartupDetailPage({ params }) {
-  const { id } = use(params)
+export default function StartupDetailPage() {
+  const { id } = useParams()
   const [startup, setStartup] = useState(null)
   const [posts, setPosts] = useState([])
   const [currentUser, setCurrentUser] = useState(null)
