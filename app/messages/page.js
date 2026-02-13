@@ -35,23 +35,31 @@ function MessagesContent() {
       }
       setCurrentUser(user)
 
-      // Load conversations
-      const { data: convos } = await supabase
+      // Load conversations - use simpler query first
+      const { data: convosRaw, error: convosError } = await supabase
         .from('conversations')
-        .select(`
-          *,
-          participant_1_profile:profiles!conversations_participant_1_fkey(id, full_name, avatar_url),
-          participant_2_profile:profiles!conversations_participant_2_fkey(id, full_name, avatar_url)
-        `)
+        .select('*')
         .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
         .order('updated_at', { ascending: false })
 
-      const processedConvos = convos?.map(convo => {
-        const otherParticipant = convo.participant_1 === user.id
-          ? convo.participant_2_profile
-          : convo.participant_1_profile
-        return { ...convo, otherParticipant }
-      }) || []
+      if (convosError) {
+        console.error('Error loading conversations:', convosError)
+      }
+
+      // Fetch profile data separately for each conversation
+      const processedConvos = await Promise.all((convosRaw || []).map(async (convo) => {
+        const otherParticipantId = convo.participant_1 === user.id 
+          ? convo.participant_2 
+          : convo.participant_1
+        
+        const { data: otherProfile } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .eq('id', otherParticipantId)
+          .single()
+
+        return { ...convo, otherParticipant: otherProfile }
+      }))
 
       setConversations(processedConvos)
 
