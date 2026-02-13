@@ -10,8 +10,9 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Mail, Calendar, Edit, UserPlus } from 'lucide-react'
+import { Mail, Calendar, Edit, UserPlus, MessageSquare } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { toast } from 'sonner'
 
 export default function ProfilePage() {
   const { id } = useParams()
@@ -50,6 +51,51 @@ export default function ProfilePage() {
     }
     loadProfile()
   }, [id])
+
+  const startConversation = async () => {
+    if (!profile?.id) {
+      toast.error('Cannot message this user')
+      return
+    }
+
+    try {
+      // Check if conversation exists - use two separate queries for reliability
+      const { data: existing1 } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('participant_1', currentUser.id)
+        .eq('participant_2', profile.id)
+        .maybeSingle()
+
+      const { data: existing2 } = await supabase
+        .from('conversations')
+        .select('id')
+        .eq('participant_1', profile.id)
+        .eq('participant_2', currentUser.id)
+        .maybeSingle()
+
+      const existing = existing1 || existing2
+
+      if (existing) {
+        router.push(`/messages?chat=${existing.id}`)
+      } else {
+        const { data: newConvo, error } = await supabase
+          .from('conversations')
+          .insert({
+            participant_1: currentUser.id,
+            participant_2: profile.id,
+          })
+          .select()
+          .single()
+
+        if (error) throw error
+        router.push(`/messages?chat=${newConvo.id}`)
+      }
+    } catch (error) {
+      console.error('Error starting conversation:', error)
+      toast.error('Failed to start conversation')
+    }
+  }
 
   const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
   const isOwnProfile = currentUser?.id === id
