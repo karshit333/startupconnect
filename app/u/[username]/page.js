@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useUser } from '@/lib/context/UserContext'
 import Navbar from '@/components/Navbar'
@@ -13,19 +13,34 @@ import { MapPin, Users, Globe, MessageSquare, Calendar, Edit, UserPlus, CheckCir
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 
+// Module-level cache for profile data
+const profileCache = {
+  data: {},
+  lastFetch: {}
+}
+
 export default function UsernamePage() {
   const { username } = useParams()
   const router = useRouter()
   const { user, supabase, isInitialized } = useUser()
   
-  const [profileData, setProfileData] = useState(null)
-  const [startupData, setStartupData] = useState(null)
-  const [posts, setPosts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [isFollowing, setIsFollowing] = useState(false)
-  const [followersCount, setFollowersCount] = useState(0)
-
   const cleanUsername = username?.toLowerCase()
+  
+  // Initialize with cached data if available
+  const cachedData = profileCache.data[cleanUsername]
+  const [profileData, setProfileData] = useState(cachedData?.profile || null)
+  const [startupData, setStartupData] = useState(cachedData?.startup || null)
+  const [posts, setPosts] = useState(cachedData?.posts || [])
+  const [loading, setLoading] = useState(!cachedData)
+  const [isFollowing, setIsFollowing] = useState(cachedData?.isFollowing || false)
+  const [followersCount, setFollowersCount] = useState(cachedData?.followersCount || 0)
+  const mountedRef = useRef(true)
+
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
 
   // Redirect if not logged in
   useEffect(() => {
@@ -37,63 +52,47 @@ export default function UsernamePage() {
   const loadStartupPosts = useCallback(async (startup) => {
     if (!user || !supabase) return
 
-    // Fetch posts, follow status, and followers count in parallel
-    const [postsResult, followResult, followersResult] = await Promise.all([
+    // OPTIMIZED: Fetch all data in parallel
+    const [postsResult, followResult, followersResult, savedResult] = await Promise.all([
       supabase.from('posts').select(`
-        *,
+        id, content, image_url, created_at, startup_id,
         startups (id, name, logo_url, domain, username),
         likes (user_id),
-        comments (id, content, created_at, user_id)
+        comments (id)
       `).eq('startup_id', startup.id).order('created_at', { ascending: false }),
       supabase.from('follows').select('id').eq('user_id', user.id).eq('startup_id', startup.id).maybeSingle(),
-      supabase.from('follows').select('id', { count: 'exact' }).eq('startup_id', startup.id)
+      supabase.from('follows').select('id', { count: 'exact' }).eq('startup_id', startup.id),
+      supabase.from('saved_posts').select('post_id').eq('user_id', user.id)
     ])
+
+    if (!mountedRef.current) return
 
     setIsFollowing(!!followResult.data)
     setFollowersCount(followersResult.count || 0)
 
-    // Batch fetch comment author profiles
     const postsData = postsResult.data || []
-    const allCommentUserIds = new Set()
-    postsData.forEach(post => {
-      post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
-    })
-
-    let profilesMap = {}
-    if (allCommentUserIds.size > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, username')
-        .in('id', Array.from(allCommentUserIds))
-      
-      profiles?.forEach(p => { profilesMap[p.id] = p })
-    }
-
-    // Fetch saved posts status
-    const postIds = postsData.map(p => p.id)
-    let savedPostsSet = new Set()
-    if (postIds.length > 0) {
-      const { data: savedPosts } = await supabase
-        .from('saved_posts')
-        .select('post_id')
-        .eq('user_id', user.id)
-        .in('post_id', postIds)
-      
-      savedPosts?.forEach(sp => savedPostsSet.add(sp.post_id))
-    }
+    const savedPostsSet = new Set(savedResult.data?.map(sp => sp.post_id) || [])
 
     const processedPosts = postsData.map(post => ({
       ...post,
-      comments: post.comments?.map(comment => ({
-        ...comment,
-        profiles: profilesMap[comment.user_id] || null
-      })) || [],
+      comments: post.comments || [],
       likes_count: post.likes?.length || 0,
       user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
       user_has_saved: savedPostsSet.has(post.id)
     }))
-    setPosts(processedPosts)
-  }, [user, supabase])
+    
+    if (mountedRef.current) {
+      setPosts(processedPosts)
+      
+      // Update cache
+      profileCache.data[cleanUsername] = {
+        ...profileCache.data[cleanUsername],
+        posts: processedPosts,
+        isFollowing: !!followResult.data,
+        followersCount: followersResult.count || 0
+      }
+    }
+  }, [user, supabase, cleanUsername])
 
   const loadProfile = useCallback(async () => {
     if (!user || !supabase) return
