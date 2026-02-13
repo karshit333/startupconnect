@@ -37,12 +37,13 @@ export default function Navbar() {
     if (user) {
       setUser(user)
       
-      // Fetch profile
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+      // Fetch profile and startup in parallel
+      const [profileResult, convosResult] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', user.id).single(),
+        supabase.from('conversations').select('id, is_accepted, participant_1').or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+      ])
+
+      const profileData = profileResult.data
       setProfile(profileData)
 
       // If startup role, fetch startup
@@ -55,34 +56,40 @@ export default function Navbar() {
         setStartup(startupData)
       }
 
-      // Get unread message count
-      const { data: convos } = await supabase
-        .from('conversations')
-        .select('id, is_accepted, participant_1')
-        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+      // Calculate unread and pending counts
+      const convos = convosResult.data || []
+      if (convos.length > 0) {
+        // Batch fetch unread message counts for all conversations
+        const convoIds = convos.map(c => c.id)
+        const { data: unreadMessages } = await supabase
+          .from('messages')
+          .select('conversation_id')
+          .in('conversation_id', convoIds)
+          .neq('sender_id', user.id)
+          .eq('is_read', false)
 
-      if (convos) {
-        let unread = 0
+        // Count unread messages per conversation
+        const unreadPerConvo = {}
+        unreadMessages?.forEach(msg => {
+          unreadPerConvo[msg.conversation_id] = (unreadPerConvo[msg.conversation_id] || 0) + 1
+        })
+
+        let totalUnread = 0
         let pending = 0
         
         for (const convo of convos) {
-          const { count } = await supabase
-            .from('messages')
-            .select('id', { count: 'exact' })
-            .eq('conversation_id', convo.id)
-            .neq('sender_id', user.id)
-            .eq('is_read', false)
-          
-          unread += count || 0
-          
-          // Count pending (message requests)
+          totalUnread += unreadPerConvo[convo.id] || 0
+          // Count pending (message requests) - initiated by others, not accepted
           if (!convo.is_accepted && convo.participant_1 !== user.id) {
             pending++
           }
         }
         
-        setUnreadMessages(unread)
+        setUnreadMessages(totalUnread)
         setPendingMessages(pending)
+      } else {
+        setUnreadMessages(0)
+        setPendingMessages(0)
       }
     }
   }, [supabase])
