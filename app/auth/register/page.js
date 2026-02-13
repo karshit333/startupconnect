@@ -122,7 +122,7 @@ function RegisterForm() {
       {/* Header */}
       <header className="p-4">
         <Link href="/" className="flex items-center gap-2 w-fit">
-          <img src="/logo.png" alt="SUCI" className="h-12" />
+          <img src="/logo.png" alt="SUCI" className="h-16" />
         </Link>
       </header>
 
