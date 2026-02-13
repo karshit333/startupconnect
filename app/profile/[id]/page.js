@@ -152,8 +152,8 @@ export default function ProfilePage() {
                         <Edit className="h-4 w-4 mr-2" />Edit Profile
                       </Button>
                     ) : (
-                      <Button size="sm" className="bg-white text-background hover:bg-white/90">
-                        <Mail className="h-4 w-4 mr-2" />Message
+                      <Button size="sm" className="bg-white text-background hover:bg-white/90" onClick={startConversation}>
+                        <MessageSquare className="h-4 w-4 mr-2" />Message
                       </Button>
                     )}
                   </div>
