@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
-import { Loader2, Eye, EyeOff, ArrowLeft } from 'lucide-react'
+import { Loader2, Eye, EyeOff } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
 
@@ -52,79 +52,85 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-muted/30">
-      <div className="w-full max-w-md">
-        <Link href="/" className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground mb-6">
-          <ArrowLeft className="h-4 w-4 mr-1" />
-          Back to home
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="p-4">
+        <Link href="/" className="flex items-center gap-2 w-fit">
+          <div className="w-9 h-9 bg-primary rounded flex items-center justify-center">
+            <span className="text-white font-bold text-lg">in</span>
+          </div>
+          <span className="text-2xl font-semibold text-primary">Startup Connect</span>
         </Link>
-        
-        <Card className="border shadow-sm">
-          <CardHeader className="text-center pb-2">
-            <div className="w-10 h-10 bg-foreground rounded-lg flex items-center justify-center mx-auto mb-4">
-              <span className="text-background font-bold">SC</span>
-            </div>
-            <CardTitle className="text-xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your account</CardDescription>
-          </CardHeader>
-          <form onSubmit={handleLogin}>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  className="h-11"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <div className="relative">
+      </header>
+
+      <div className="flex justify-center px-4 py-8">
+        <div className="w-full max-w-[352px]">
+          <Card className="border shadow-lg">
+            <CardHeader className="space-y-1 pb-4">
+              <CardTitle className="text-3xl font-normal">Sign in</CardTitle>
+              <CardDescription>Stay updated on the startup world</CardDescription>
+            </CardHeader>
+            <form onSubmit={handleLogin}>
+              <CardContent className="space-y-4">
+                <div className="space-y-1">
+                  <Label htmlFor="email" className="text-sm text-muted-foreground">Email</Label>
                   <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Enter your password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-11 pr-10"
+                    className="h-12"
                   />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-11 w-11 text-muted-foreground"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
                 </div>
-              </div>
-            </CardContent>
-            <CardFooter className="flex flex-col gap-4">
-              <Button type="submit" className="w-full h-11" disabled={loading}>
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  'Sign In'
-                )}
-              </Button>
-              <p className="text-sm text-muted-foreground text-center">
-                Don't have an account?{' '}
-                <Link href="/auth/register" className="text-foreground hover:underline font-medium">
-                  Join Now
+                <div className="space-y-1">
+                  <Label htmlFor="password" className="text-sm text-muted-foreground">Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="password"
+                      type={showPassword ? 'text' : 'password'}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      required
+                      className="h-12 pr-12"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80 font-semibold"
+                      onClick={() => setShowPassword(!showPassword)}
+                    >
+                      {showPassword ? 'Hide' : 'Show'}
+                    </Button>
+                  </div>
+                </div>
+                <Link href="#" className="text-primary font-semibold text-sm hover:underline block">
+                  Forgot password?
                 </Link>
-              </p>
-            </CardFooter>
-          </form>
-        </Card>
+              </CardContent>
+              <CardFooter className="flex flex-col gap-4">
+                <Button type="submit" className="w-full h-12 bg-primary hover:bg-primary/90 text-base font-semibold" disabled={loading}>
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Signing in...
+                    </>
+                  ) : (
+                    'Sign in'
+                  )}
+                </Button>
+              </CardFooter>
+            </form>
+          </Card>
+          
+          <p className="text-center mt-6">
+            New to Startup Connect?{' '}
+            <Link href="/auth/register" className="text-primary font-semibold hover:underline">
+              Join now
+            </Link>
+          </p>
+        </div>
       </div>
     </div>
   )
