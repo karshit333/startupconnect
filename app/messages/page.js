@@ -15,21 +15,30 @@ import { Send, MessageSquare, Inbox, Clock, Check, CheckCheck } from 'lucide-rea
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
 
+// Module-level cache for conversations
+const messagesCache = {
+  conversations: [],
+  pending: [],
+  lastFetch: 0
+}
+
 function MessagesContent() {
   const searchParams = useSearchParams()
   const initialChatId = searchParams.get('chat')
   const { user, supabase, isInitialized, markMessagesAsRead } = useUser()
   
-  const [conversations, setConversations] = useState([])
-  const [pendingConversations, setPendingConversations] = useState([])
+  // Initialize with cached data
+  const [conversations, setConversations] = useState(messagesCache.conversations)
+  const [pendingConversations, setPendingConversations] = useState(messagesCache.pending)
   const [selectedConvo, setSelectedConvo] = useState(null)
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(messagesCache.conversations.length === 0)
   const [sendingMessage, setSendingMessage] = useState(false)
   const [activeTab, setActiveTab] = useState('messages')
   const messagesEndRef = useRef(null)
   const router = useRouter()
+  const fetchingRef = useRef(false)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -38,84 +47,104 @@ function MessagesContent() {
     }
   }, [isInitialized, user, router])
 
-  const loadConversations = useCallback(async () => {
+  const loadConversations = useCallback(async (forceRefresh = false) => {
     if (!user || !supabase) return []
-
-    const { data: convosRaw } = await supabase
-      .from('conversations')
-      .select('*')
-      .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-      .order('updated_at', { ascending: false })
-
-    if (!convosRaw || convosRaw.length === 0) {
-      setConversations([])
-      setPendingConversations([])
-      return []
+    if (fetchingRef.current) return messagesCache.conversations.concat(messagesCache.pending)
+    
+    // Use cache if recent
+    const now = Date.now()
+    if (!forceRefresh && messagesCache.conversations.length > 0 && (now - messagesCache.lastFetch) < 10000) {
+      return messagesCache.conversations.concat(messagesCache.pending)
     }
 
-    // Get all participant IDs
-    const participantIds = new Set()
-    convosRaw.forEach(c => {
-      if (c.participant_1 !== user.id) participantIds.add(c.participant_1)
-      if (c.participant_2 !== user.id) participantIds.add(c.participant_2)
-    })
+    fetchingRef.current = true
 
-    // Batch fetch all participant profiles
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, username')
-      .in('id', Array.from(participantIds))
+    try {
+      const { data: convosRaw } = await supabase
+        .from('conversations')
+        .select('*')
+        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+        .order('updated_at', { ascending: false })
 
-    const profilesMap = {}
-    profiles?.forEach(p => { profilesMap[p.id] = p })
-
-    // Get conversation IDs for batch queries
-    const convoIds = convosRaw.map(c => c.id)
-
-    // Batch fetch last messages for all conversations
-    const { data: allMessages } = await supabase
-      .from('messages')
-      .select('*')
-      .in('conversation_id', convoIds)
-      .order('created_at', { ascending: false })
-
-    // Group messages by conversation and get last message
-    const lastMessageByConvo = {}
-    const unreadCountByConvo = {}
-    
-    allMessages?.forEach(msg => {
-      if (!lastMessageByConvo[msg.conversation_id]) {
-        lastMessageByConvo[msg.conversation_id] = msg
+      if (!convosRaw || convosRaw.length === 0) {
+        messagesCache.conversations = []
+        messagesCache.pending = []
+        messagesCache.lastFetch = Date.now()
+        setConversations([])
+        setPendingConversations([])
+        return []
       }
-      // Count unread messages (not from current user, not read)
-      if (msg.sender_id !== user.id && !msg.is_read) {
-        unreadCountByConvo[msg.conversation_id] = (unreadCountByConvo[msg.conversation_id] || 0) + 1
-      }
-    })
 
-    // Process conversations
-    const processedConvos = convosRaw.map(convo => {
-      const isParticipant1 = convo.participant_1 === user.id
-      const otherParticipantId = isParticipant1 ? convo.participant_2 : convo.participant_1
-      const isPending = !convo.is_accepted && convo.participant_1 !== user.id
+      // Get all participant IDs
+      const participantIds = new Set()
+      convosRaw.forEach(c => {
+        if (c.participant_1 !== user.id) participantIds.add(c.participant_1)
+        if (c.participant_2 !== user.id) participantIds.add(c.participant_2)
+      })
 
-      return {
-        ...convo,
-        otherParticipant: profilesMap[otherParticipantId] || null,
-        lastMessage: lastMessageByConvo[convo.id] || null,
-        unreadCount: unreadCountByConvo[convo.id] || 0,
-        isPending
-      }
-    })
+      // Batch fetch all participant profiles
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, username')
+        .in('id', Array.from(participantIds))
 
-    // Split into accepted and pending
-    const accepted = processedConvos.filter(c => !c.isPending)
-    const pending = processedConvos.filter(c => c.isPending)
+      const profilesMap = {}
+      profiles?.forEach(p => { profilesMap[p.id] = p })
 
-    setConversations(accepted)
-    setPendingConversations(pending)
+      // Get conversation IDs for batch queries
+      const convoIds = convosRaw.map(c => c.id)
 
-    return processedConvos
+      // Batch fetch last messages for all conversations
+      const { data: allMessages } = await supabase
+        .from('messages')
+        .select('*')
+        .in('conversation_id', convoIds)
+        .order('created_at', { ascending: false })
+
+      // Group messages by conversation
+      const lastMessageByConvo = {}
+      const unreadCountByConvo = {}
+      
+      allMessages?.forEach(msg => {
+        if (!lastMessageByConvo[msg.conversation_id]) {
+          lastMessageByConvo[msg.conversation_id] = msg
+        }
+        if (msg.sender_id !== user.id && !msg.is_read) {
+          unreadCountByConvo[msg.conversation_id] = (unreadCountByConvo[msg.conversation_id] || 0) + 1
+        }
+      })
+
+      // Process conversations
+      const processedConvos = convosRaw.map(convo => {
+        const isParticipant1 = convo.participant_1 === user.id
+        const otherParticipantId = isParticipant1 ? convo.participant_2 : convo.participant_1
+        const isPending = !convo.is_accepted && convo.participant_1 !== user.id
+
+        return {
+          ...convo,
+          otherParticipant: profilesMap[otherParticipantId] || null,
+          lastMessage: lastMessageByConvo[convo.id] || null,
+          unreadCount: unreadCountByConvo[convo.id] || 0,
+          isPending
+        }
+      })
+
+      // Split into accepted and pending
+      const accepted = processedConvos.filter(c => !c.isPending)
+      const pending = processedConvos.filter(c => c.isPending)
+
+      // Update cache
+      messagesCache.conversations = accepted
+      messagesCache.pending = pending
+      messagesCache.lastFetch = Date.now()
+
+      setConversations(accepted)
+      setPendingConversations(pending)
+
+      return processedConvos
+    } finally {
+      fetchingRef.current = false
+    }
   }, [user, supabase])
 
   // Initial load
@@ -156,7 +185,7 @@ function MessagesContent() {
       return
     }
 
-    // Mark messages as read using the context function
+    // Mark messages as read - this will update the badge immediately
     await markMessagesAsRead(convoId)
 
     // Batch fetch sender profiles
@@ -177,10 +206,14 @@ function MessagesContent() {
     setMessages(messagesWithSender)
     scrollToBottom()
 
-    // Update unread count in local UI immediately
+    // Update local conversation unread count immediately
     setConversations(prev => prev.map(c => 
       c.id === convoId ? { ...c, unreadCount: 0 } : c
     ))
+    // Also update cache
+    messagesCache.conversations = messagesCache.conversations.map(c =>
+      c.id === convoId ? { ...c, unreadCount: 0 } : c
+    )
   }
 
   const scrollToBottom = () => {
@@ -199,13 +232,16 @@ function MessagesContent() {
     if (!newMessage.trim() || !selectedConvo || !user || !supabase) return
 
     setSendingMessage(true)
+    const messageContent = newMessage.trim()
+    setNewMessage('')
+
     try {
       const { data: msgData, error } = await supabase
         .from('messages')
         .insert({
           conversation_id: selectedConvo.id,
           sender_id: user.id,
-          content: newMessage.trim(),
+          content: messageContent,
         })
         .select()
         .single()
@@ -221,15 +257,14 @@ function MessagesContent() {
 
       const messageWithSender = { ...msgData, sender: senderProfile }
       setMessages(prev => [...prev, messageWithSender])
-      setNewMessage('')
 
-      // Update conversation - mark as accepted if responding to pending
+      // Update conversation
       await supabase
         .from('conversations')
         .update({ 
           updated_at: new Date().toISOString(),
           is_accepted: true,
-          last_message_preview: newMessage.trim().slice(0, 50)
+          last_message_preview: messageContent.slice(0, 50)
         })
         .eq('id', selectedConvo.id)
 
@@ -244,6 +279,7 @@ function MessagesContent() {
     } catch (error) {
       console.error('Failed to send message:', error)
       toast.error('Failed to send message')
+      setNewMessage(messageContent) // Restore message on error
     } finally {
       setSendingMessage(false)
     }
@@ -254,12 +290,22 @@ function MessagesContent() {
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
   const totalPending = pendingConversations.length
 
-  if (!isInitialized || loading) {
+  // Show skeleton only if no cached data
+  if (!isInitialized || (loading && conversations.length === 0)) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="container mx-auto px-4 py-6">
-          <div className="bg-card rounded-lg border border-border h-[600px] skeleton" />
+          <div className="bg-card rounded-lg border border-border h-[600px] flex">
+            <div className="w-80 border-r border-border">
+              <div className="p-4 space-y-4">
+                {[1,2,3].map(i => <div key={i} className="h-16 skeleton rounded" />)}
+              </div>
+            </div>
+            <div className="flex-1 flex items-center justify-center text-muted-foreground">
+              <MessageSquare className="h-12 w-12 opacity-50" />
+            </div>
+          </div>
         </div>
       </div>
     )
