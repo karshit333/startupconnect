@@ -176,7 +176,7 @@ export default function LandingPage() {
       <footer className="border-t border-border py-8">
         <div className="container mx-auto px-4">
           <div className="flex items-center gap-2 mb-4">
-            <img src="/logo.png" alt="SUCI" className="h-10" />
+            <img src="/logo.png" alt="SUCI" className="h-14" />
           </div>
           <p className="text-sm text-muted-foreground">© 2025 Startup Connect India. Built for the Indian startup ecosystem.</p>
         </div>
