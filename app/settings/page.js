@@ -11,16 +11,20 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { Settings, User, Lock, Loader2, Camera } from 'lucide-react'
+import { Settings, User, Lock, Loader2, Camera, AtSign, Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
+import { validateUsername } from '@/lib/utils/username'
 
 export default function SettingsPage() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingUsername, setSavingUsername] = useState(false)
   const [uploading, setUploading] = useState(false)
   const [formData, setFormData] = useState({ full_name: '', bio: '', skills: '' })
+  const [username, setUsername] = useState('')
+  const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: null, error: null })
   const router = useRouter()
   const supabase = createClient()
 
@@ -40,10 +44,42 @@ export default function SettingsPage() {
         bio: profileData?.bio || '',
         skills: profileData?.skills?.join(', ') || '',
       })
+      setUsername(profileData?.username || '')
       setLoading(false)
     }
     init()
   }, [])
+
+  const checkUsernameAvailability = async (usernameToCheck) => {
+    if (usernameToCheck === profile?.username) {
+      setUsernameStatus({ checking: false, available: true, error: null })
+      return true
+    }
+
+    const validation = validateUsername(usernameToCheck)
+    if (!validation.valid) {
+      setUsernameStatus({ checking: false, available: false, error: validation.error })
+      return false
+    }
+
+    setUsernameStatus({ checking: true, available: null, error: null })
+    
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', validation.username)
+      .maybeSingle()
+
+    const { data: startupData } = await supabase
+      .from('startups')
+      .select('username')
+      .eq('username', validation.username)
+      .maybeSingle()
+
+    const exists = profileData || startupData
+    setUsernameStatus({ checking: false, available: !exists, error: exists ? 'Username already taken' : null })
+    return !exists
+  }
 
   const handleAvatarUpload = async (e) => {
     const file = e.target.files[0]
@@ -68,6 +104,41 @@ export default function SettingsPage() {
       toast.error('Failed to upload avatar')
     } finally {
       setUploading(false)
+    }
+  }
+
+  const handleSaveUsername = async () => {
+    const validation = validateUsername(username)
+    if (!validation.valid) {
+      toast.error(validation.error)
+      return
+    }
+
+    if (username === profile?.username) {
+      toast.success('No changes to save')
+      return
+    }
+
+    const available = await checkUsernameAvailability(username)
+    if (!available) {
+      toast.error('Username is not available')
+      return
+    }
+
+    setSavingUsername(true)
+    try {
+      const { error } = await supabase.from('profiles').update({
+        username: validation.username,
+        updated_at: new Date().toISOString(),
+      }).eq('id', user.id)
+
+      if (error) throw error
+      setProfile({ ...profile, username: validation.username })
+      toast.success('Username updated!')
+    } catch (error) {
+      toast.error('Failed to update username')
+    } finally {
+      setSavingUsername(false)
     }
   }
 
@@ -112,6 +183,59 @@ export default function SettingsPage() {
             <h1 className="text-2xl font-semibold flex items-center gap-2"><Settings className="h-6 w-6" />Settings</h1>
             <p className="text-muted-foreground text-sm">Manage your account</p>
           </div>
+
+          {/* Username Section */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2"><AtSign className="h-5 w-5" />Username</CardTitle>
+              <CardDescription>Your unique @username for your profile</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label>Username</Label>
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</div>
+                    <Input
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                      onBlur={() => username && checkUsernameAvailability(username)}
+                      className="bg-secondary border-0 pl-8 pr-10"
+                      placeholder="yourname"
+                    />
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                      {usernameStatus.checking && (
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      )}
+                      {!usernameStatus.checking && usernameStatus.available === true && (
+                        <Check className="h-4 w-4 text-green-500" />
+                      )}
+                      {!usernameStatus.checking && usernameStatus.available === false && (
+                        <AlertCircle className="h-4 w-4 text-red-500" />
+                      )}
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={handleSaveUsername} 
+                    disabled={savingUsername || usernameStatus.available === false}
+                    className="bg-white text-background hover:bg-white/90"
+                  >
+                    {savingUsername ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+                  </Button>
+                </div>
+                {usernameStatus.error && (
+                  <p className="text-xs text-red-500">{usernameStatus.error}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {profile?.username ? (
+                    <>Your profile: <span className="text-white">/@{profile.username}</span></>
+                  ) : (
+                    'Set a username to get a custom profile URL'
+                  )}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card className="bg-card border-border">
             <CardHeader>
