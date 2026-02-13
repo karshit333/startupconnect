@@ -322,7 +322,7 @@ export default function PostCard({ post, currentUserId, onPostUpdate }) {
                       <p className="text-sm text-muted-foreground">{renderTextWithMentions(comment.content)}</p>
                     </div>
                     <p className="text-xs text-muted-foreground mt-1 ml-3">
-                      {formatDistanceToNow(new Date(comment.created_at), { addSuffix: true })}
+                      {comment.created_at ? formatDistanceToNow(new Date(comment.created_at), { addSuffix: true }) : 'Just now'}
                     </p>
                   </div>
                 </div>
