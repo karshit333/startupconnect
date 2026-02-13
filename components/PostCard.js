@@ -171,7 +171,7 @@ export default function PostCard({ post, currentUserId, onPostUpdate }) {
       <Card className="bg-card border-border">
         <CardHeader className="pb-0 pt-4 px-4">
           <div className="flex items-start justify-between">
-            <Link href={post.startups?.username ? `/@${post.startups.username}` : `/startup/${post.startup_id}`} className="flex items-start gap-3 group">
+            <Link href={post.startups?.username ? `/u/${post.startups.username}` : `/startup/${post.startup_id}`} className="flex items-start gap-3 group">
               <Avatar className="h-12 w-12">
                 <AvatarImage src={post.startups?.logo_url} />
                 <AvatarFallback className="bg-white/10">{getInitials(post.startups?.name)}</AvatarFallback>
