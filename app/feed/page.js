@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
@@ -22,84 +22,99 @@ export default function FeedPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  useEffect(() => {
-    async function loadData() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-      setUser(user)
+  // Optimized data loading - fetch all needed data in parallel where possible
+  const loadData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/auth/login')
+      return
+    }
+    setUser(user)
 
-      const { data: profileData } = await supabase
+    // Fetch profile, posts, startups, and events in parallel
+    const [profileResult, postsResult, startupsResult, eventsResult] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', user.id).single(),
+      supabase.from('posts').select(`
+        *,
+        startups (id, name, logo_url, domain, username),
+        likes (user_id),
+        comments (id, content, created_at, user_id)
+      `).order('created_at', { ascending: false }).limit(20),
+      supabase.from('startups').select('*').eq('is_approved', true).limit(5),
+      supabase.from('events').select('*').gte('event_date', new Date().toISOString()).order('event_date', { ascending: true }).limit(3)
+    ])
+
+    setProfile(profileResult.data)
+    setTrendingStartups(startupsResult.data || [])
+    setUpcomingEvents(eventsResult.data || [])
+
+    // Process posts - collect all comment user IDs first to batch fetch
+    const postsData = postsResult.data || []
+    const allCommentUserIds = new Set()
+    postsData.forEach(post => {
+      post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
+    })
+
+    // Batch fetch all comment author profiles in one query
+    let profilesMap = {}
+    if (allCommentUserIds.size > 0) {
+      const { data: profiles } = await supabase
         .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
-      setProfile(profileData)
-
-      const { data: postsData } = await supabase
-        .from('posts')
-        .select(`
-          *,
-          startups (id, name, logo_url, domain, username),
-          likes (user_id),
-          comments (id, content, created_at, user_id)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(20)
-
-      // Fetch profiles for comments
-      const processedPosts = await Promise.all((postsData || []).map(async (post) => {
-        // Get unique user IDs from comments
-        const commentUserIds = [...new Set(post.comments?.map(c => c.user_id) || [])]
-        
-        // Fetch profiles for comment authors
-        let profilesMap = {}
-        if (commentUserIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, full_name, avatar_url, username')
-            .in('id', commentUserIds)
-          
-          profiles?.forEach(p => { profilesMap[p.id] = p })
-        }
-
-        // Attach profiles to comments
-        const commentsWithProfiles = post.comments?.map(comment => ({
-          ...comment,
-          profiles: profilesMap[comment.user_id] || null
-        })) || []
-
-        return {
-          ...post,
-          comments: commentsWithProfiles,
-          likes_count: post.likes?.length || 0,
-          user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
-        }
-      }))
-      setPosts(processedPosts)
-
-      const { data: startups } = await supabase
-        .from('startups')
-        .select('*')
-        .eq('is_approved', true)
-        .limit(5)
-      setTrendingStartups(startups || [])
-
-      const { data: events } = await supabase
-        .from('events')
-        .select('*')
-        .gte('event_date', new Date().toISOString())
-        .order('event_date', { ascending: true })
-        .limit(3)
-      setUpcomingEvents(events || [])
-
-      setLoading(false)
+        .select('id, full_name, avatar_url, username')
+        .in('id', Array.from(allCommentUserIds))
+      
+      profiles?.forEach(p => { profilesMap[p.id] = p })
     }
 
-    loadData()
+    // Fetch saved posts status for current user
+    const postIds = postsData.map(p => p.id)
+    let savedPostsSet = new Set()
+    if (postIds.length > 0) {
+      const { data: savedPosts } = await supabase
+        .from('saved_posts')
+        .select('post_id')
+        .eq('user_id', user.id)
+        .in('post_id', postIds)
+      
+      savedPosts?.forEach(sp => savedPostsSet.add(sp.post_id))
+    }
+
+    // Process posts with all the data
+    const processedPosts = postsData.map(post => ({
+      ...post,
+      comments: post.comments?.map(comment => ({
+        ...comment,
+        profiles: profilesMap[comment.user_id] || null
+      })) || [],
+      likes_count: post.likes?.length || 0,
+      user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
+      user_has_saved: savedPostsSet.has(post.id)
+    }))
+
+    setPosts(processedPosts)
+    setLoading(false)
   }, [router, supabase])
+
+  useEffect(() => {
+    loadData()
+
+    // Set up real-time subscription for new posts
+    const channel = supabase
+      .channel('feed-posts')
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'posts'
+      }, () => {
+        // Reload feed when new post is created
+        loadData()
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [loadData])
 
   const getInitials = (name) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
