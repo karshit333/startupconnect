@@ -4,48 +4,49 @@
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 0 0% 9%;
-    --card: 0 0% 100%;
-    --card-foreground: 0 0% 9%;
+    /* LinkedIn-inspired theme */
+    --background: 210 20% 96%; /* Light gray background like LinkedIn */
+    --foreground: 210 20% 12%; /* Dark text */
+    --card: 0 0% 100%; /* White cards */
+    --card-foreground: 210 20% 12%;
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 9%;
-    --primary: 0 0% 9%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 0 0% 96%;
-    --secondary-foreground: 0 0% 9%;
-    --muted: 0 0% 96%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 0 0% 96%;
-    --accent-foreground: 0 0% 9%;
+    --popover-foreground: 210 20% 12%;
+    --primary: 210 100% 40%; /* LinkedIn blue */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 15% 92%; /* Light gray */
+    --secondary-foreground: 210 20% 12%;
+    --muted: 210 15% 94%;
+    --muted-foreground: 210 10% 45%;
+    --accent: 210 15% 92%;
+    --accent-foreground: 210 20% 12%;
     --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 90%;
-    --input: 0 0% 90%;
-    --ring: 0 0% 9%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 15% 88%;
+    --input: 210 15% 88%;
+    --ring: 210 100% 40%;
     --radius: 0.5rem;
   }
 
   .dark {
-    --background: 0 0% 4%;
-    --foreground: 0 0% 98%;
-    --card: 0 0% 7%;
-    --card-foreground: 0 0% 98%;
-    --popover: 0 0% 7%;
-    --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
-    --secondary: 0 0% 15%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 0 0% 64%;
-    --accent: 0 0% 15%;
-    --accent-foreground: 0 0% 98%;
-    --destructive: 0 62% 30%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 0 0% 18%;
-    --input: 0 0% 18%;
-    --ring: 0 0% 83%;
+    --background: 210 20% 8%;
+    --foreground: 210 15% 95%;
+    --card: 210 20% 12%;
+    --card-foreground: 210 15% 95%;
+    --popover: 210 20% 12%;
+    --popover-foreground: 210 15% 95%;
+    --primary: 210 100% 50%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 210 15% 18%;
+    --secondary-foreground: 210 15% 95%;
+    --muted: 210 15% 18%;
+    --muted-foreground: 210 10% 60%;
+    --accent: 210 15% 18%;
+    --accent-foreground: 210 15% 95%;
+    --destructive: 0 62% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 15% 22%;
+    --input: 210 15% 22%;
+    --ring: 210 100% 50%;
   }
 }
 
@@ -58,25 +59,25 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   
-  /* Better Typography */
+  /* LinkedIn-style Typography */
   h1 {
-    @apply text-3xl font-semibold tracking-tight;
+    @apply text-2xl font-semibold tracking-tight text-foreground;
   }
   h2 {
-    @apply text-2xl font-semibold tracking-tight;
+    @apply text-xl font-semibold tracking-tight text-foreground;
   }
   h3 {
-    @apply text-xl font-medium tracking-tight;
+    @apply text-base font-semibold text-foreground;
   }
   h4 {
-    @apply text-lg font-medium;
+    @apply text-sm font-semibold text-foreground;
   }
   p {
-    @apply leading-relaxed;
+    @apply leading-normal text-foreground/90;
   }
 }
 
-/* Skeleton Animation */
+/* LinkedIn-style Skeleton Animation */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -87,21 +88,21 @@
 }
 
 .skeleton {
-  @apply bg-muted rounded;
+  @apply rounded;
   background: linear-gradient(
     90deg,
-    hsl(var(--muted)) 25%,
-    hsl(var(--border)) 50%,
-    hsl(var(--muted)) 75%
+    hsl(210 15% 90%) 25%,
+    hsl(210 15% 96%) 50%,
+    hsl(210 15% 90%) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* Custom Scrollbar */
+/* Custom Scrollbar - LinkedIn style */
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+  width: 8px;
+  height: 8px;
 }
 
 ::-webkit-scrollbar-track {
@@ -109,24 +110,29 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-border rounded-full;
+  @apply bg-foreground/20 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-muted-foreground/50;
+  @apply bg-foreground/30;
 }
 
 /* Focus styles */
 *:focus-visible {
-  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
 }
 
-/* Better button transitions */
+/* Button transitions */
 button {
-  @apply transition-all duration-200;
+  @apply transition-all duration-150;
 }
 
-/* Card hover effects */
+/* LinkedIn-style card hover */
 .card-hover {
-  @apply transition-all duration-200 hover:shadow-md hover:border-foreground/20;
+  @apply transition-shadow duration-200 hover:shadow-md;
+}
+
+/* LinkedIn blue link */
+.link-primary {
+  @apply text-primary hover:text-primary/80 hover:underline;
 }
