@@ -175,11 +175,12 @@ function MessagesContent() {
         }
       }
 
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
     }
     init()
   }, [isInitialized, user, initialChatId, loadConversations])
 
+  // OPTIMIZED: Load messages for a conversation
   const loadMessages = async (convoId) => {
     if (!user || !supabase) return
     
@@ -190,39 +191,45 @@ function MessagesContent() {
       .order('created_at', { ascending: true })
     
     if (!messagesRaw || messagesRaw.length === 0) {
-      setMessages([])
+      if (mountedRef.current) setMessages([])
       return
     }
 
-    // Mark messages as read - this will update the badge immediately
+    // IMPORTANT: Mark messages as read FIRST - this updates navbar badge
     await markMessagesAsRead(convoId)
 
-    // Batch fetch sender profiles
+    // Use cached profiles if available, otherwise fetch
     const senderIds = [...new Set(messagesRaw.map(m => m.sender_id))]
-    const { data: senderProfiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url, username')
-      .in('id', senderIds)
-
-    const profilesMap = {}
-    senderProfiles?.forEach(p => { profilesMap[p.id] = p })
+    const missingIds = senderIds.filter(id => !messagesCache.profilesMap[id])
+    
+    if (missingIds.length > 0) {
+      const { data: newProfiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, username')
+        .in('id', missingIds)
+      
+      newProfiles?.forEach(p => { messagesCache.profilesMap[p.id] = p })
+    }
 
     const messagesWithSender = messagesRaw.map(msg => ({
       ...msg,
-      sender: profilesMap[msg.sender_id] || null
+      sender: messagesCache.profilesMap[msg.sender_id] || null
     }))
 
-    setMessages(messagesWithSender)
+    if (mountedRef.current) {
+      setMessages(messagesWithSender)
+      
+      // Update local conversation unread count to 0 IMMEDIATELY
+      setConversations(prev => prev.map(c => 
+        c.id === convoId ? { ...c, unreadCount: 0 } : c
+      ))
+      // Also update cache
+      messagesCache.conversations = messagesCache.conversations.map(c =>
+        c.id === convoId ? { ...c, unreadCount: 0 } : c
+      )
+    }
+    
     scrollToBottom()
-
-    // Update local conversation unread count immediately
-    setConversations(prev => prev.map(c => 
-      c.id === convoId ? { ...c, unreadCount: 0 } : c
-    ))
-    // Also update cache
-    messagesCache.conversations = messagesCache.conversations.map(c =>
-      c.id === convoId ? { ...c, unreadCount: 0 } : c
-    )
   }
 
   const scrollToBottom = () => {
