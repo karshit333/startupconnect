@@ -97,6 +97,21 @@ export default function UsernamePage() {
   const loadProfile = useCallback(async () => {
     if (!user || !supabase) return
 
+    // Check cache first (within 30 seconds)
+    const cacheTime = profileCache.lastFetch[cleanUsername] || 0
+    if (Date.now() - cacheTime < 30000 && profileCache.data[cleanUsername]) {
+      const cached = profileCache.data[cleanUsername]
+      if (mountedRef.current) {
+        setProfileData(cached.profile)
+        setStartupData(cached.startup)
+        setPosts(cached.posts || [])
+        setIsFollowing(cached.isFollowing || false)
+        setFollowersCount(cached.followersCount || 0)
+        setLoading(false)
+      }
+      return
+    }
+
     // Try to find user profile first
     const { data: profile } = await supabase
       .from('profiles')
@@ -105,7 +120,7 @@ export default function UsernamePage() {
       .single()
 
     if (profile) {
-      setProfileData(profile)
+      if (mountedRef.current) setProfileData(profile)
       
       // If it's a startup account, get their startup
       if (profile.role === 'startup') {
@@ -115,12 +130,22 @@ export default function UsernamePage() {
           .eq('user_id', profile.id)
           .single()
         
-        if (startup) {
+        if (startup && mountedRef.current) {
           setStartupData(startup)
           await loadStartupPosts(startup)
+          
+          // Update cache
+          profileCache.data[cleanUsername] = {
+            profile,
+            startup,
+            posts: profileCache.data[cleanUsername]?.posts || [],
+            isFollowing: profileCache.data[cleanUsername]?.isFollowing || false,
+            followersCount: profileCache.data[cleanUsername]?.followersCount || 0
+          }
+          profileCache.lastFetch[cleanUsername] = Date.now()
         }
       }
-      setLoading(false)
+      if (mountedRef.current) setLoading(false)
       return
     }
 
@@ -132,7 +157,7 @@ export default function UsernamePage() {
       .single()
 
     if (startup) {
-      setStartupData(startup)
+      if (mountedRef.current) setStartupData(startup)
       
       // Get owner profile
       const { data: ownerProfile } = await supabase
@@ -140,15 +165,26 @@ export default function UsernamePage() {
         .select('*')
         .eq('id', startup.user_id)
         .single()
-      setProfileData(ownerProfile)
-
+      
+      if (mountedRef.current) setProfileData(ownerProfile)
       await loadStartupPosts(startup)
-      setLoading(false)
+      
+      // Update cache
+      profileCache.data[cleanUsername] = {
+        profile: ownerProfile,
+        startup,
+        posts: profileCache.data[cleanUsername]?.posts || [],
+        isFollowing: profileCache.data[cleanUsername]?.isFollowing || false,
+        followersCount: profileCache.data[cleanUsername]?.followersCount || 0
+      }
+      profileCache.lastFetch[cleanUsername] = Date.now()
+      
+      if (mountedRef.current) setLoading(false)
       return
     }
 
     // Not found
-    setLoading(false)
+    if (mountedRef.current) setLoading(false)
   }, [cleanUsername, user, supabase, loadStartupPosts])
 
   useEffect(() => {
