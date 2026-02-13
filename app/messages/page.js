@@ -77,12 +77,30 @@ function MessagesContent() {
   }, [])
 
   const loadMessages = async (convoId) => {
-    const { data } = await supabase
+    const { data: messagesRaw, error: msgError } = await supabase
       .from('messages')
-      .select(`*, sender:profiles!messages_sender_id_fkey(id, full_name, avatar_url)`)
+      .select('*')
       .eq('conversation_id', convoId)
       .order('created_at', { ascending: true })
-    setMessages(data || [])
+    
+    if (msgError) {
+      console.error('Error loading messages:', msgError)
+      setMessages([])
+      return
+    }
+
+    // Fetch sender profiles separately
+    const messagesWithSender = await Promise.all((messagesRaw || []).map(async (msg) => {
+      const { data: senderProfile } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .eq('id', msg.sender_id)
+        .single()
+      
+      return { ...msg, sender: senderProfile }
+    }))
+
+    setMessages(messagesWithSender)
     scrollToBottom()
   }
 
