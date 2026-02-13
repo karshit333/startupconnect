@@ -234,7 +234,7 @@ export default function Navbar() {
                     <Button 
                       variant="outline" 
                       className="w-full mt-3 h-8 border-white/20 hover:bg-white/5"
-                      onClick={() => router.push(profile?.username ? `/@${profile.username}` : `/profile/${user?.id}`)}
+                      onClick={() => router.push(profile?.username ? `/u/${profile.username}` : `/profile/${user?.id}`)}
                     >
                       View Profile
                     </Button>
