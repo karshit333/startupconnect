@@ -90,7 +90,7 @@ export default function Navbar() {
   useEffect(() => {
     loadUserData()
     
-    // Set up real-time subscription for new messages
+    // Set up real-time subscription for messages (both new messages and read status updates)
     const channel = supabase
       .channel('navbar-messages')
       .on('postgres_changes', {
@@ -99,6 +99,14 @@ export default function Navbar() {
         table: 'messages'
       }, () => {
         // Reload unread count when new message arrives
+        loadUserData()
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE',
+        schema: 'public',
+        table: 'messages'
+      }, () => {
+        // Reload unread count when message is marked as read
         loadUserData()
       })
       .subscribe()
