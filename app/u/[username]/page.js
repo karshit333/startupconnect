@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
+import { useUser } from '@/lib/context/UserContext'
 import Navbar from '@/components/Navbar'
 import PostCard from '@/components/PostCard'
 import { Card, CardContent } from '@/components/ui/card'
@@ -16,80 +16,27 @@ import { toast } from 'sonner'
 export default function UsernamePage() {
   const { username } = useParams()
   const router = useRouter()
+  const { user, supabase, isInitialized } = useUser()
+  
   const [profileData, setProfileData] = useState(null)
   const [startupData, setStartupData] = useState(null)
   const [posts, setPosts] = useState([])
-  const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [isFollowing, setIsFollowing] = useState(false)
   const [followersCount, setFollowersCount] = useState(0)
-  const supabase = createClient()
 
   const cleanUsername = username?.toLowerCase()
 
-  const loadProfile = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+  // Redirect if not logged in
+  useEffect(() => {
+    if (isInitialized && !user) {
       router.push('/auth/login')
-      return
     }
-    setCurrentUser(user)
+  }, [isInitialized, user, router])
 
-    // Try to find user profile first
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('username', cleanUsername)
-      .single()
+  const loadStartupPosts = useCallback(async (startup) => {
+    if (!user || !supabase) return
 
-    if (profile) {
-      setProfileData(profile)
-      
-      // If it's a startup account, get their startup
-      if (profile.role === 'startup') {
-        const { data: startup } = await supabase
-          .from('startups')
-          .select('*')
-          .eq('user_id', profile.id)
-          .single()
-        
-        if (startup) {
-          setStartupData(startup)
-          await loadStartupPosts(startup, user)
-        }
-      }
-      setLoading(false)
-      return
-    }
-
-    // Check if it's a startup username
-    const { data: startup } = await supabase
-      .from('startups')
-      .select('*')
-      .eq('username', cleanUsername)
-      .single()
-
-    if (startup) {
-      setStartupData(startup)
-      
-      // Get owner profile
-      const { data: ownerProfile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', startup.user_id)
-        .single()
-      setProfileData(ownerProfile)
-
-      await loadStartupPosts(startup, user)
-      setLoading(false)
-      return
-    }
-
-    // Not found
-    setLoading(false)
-  }, [cleanUsername, router, supabase])
-
-  const loadStartupPosts = async (startup, user) => {
     // Fetch posts, follow status, and followers count in parallel
     const [postsResult, followResult, followersResult] = await Promise.all([
       supabase.from('posts').select(`
@@ -146,24 +93,83 @@ export default function UsernamePage() {
       user_has_saved: savedPostsSet.has(post.id)
     }))
     setPosts(processedPosts)
-  }
+  }, [user, supabase])
+
+  const loadProfile = useCallback(async () => {
+    if (!user || !supabase) return
+
+    // Try to find user profile first
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('username', cleanUsername)
+      .single()
+
+    if (profile) {
+      setProfileData(profile)
+      
+      // If it's a startup account, get their startup
+      if (profile.role === 'startup') {
+        const { data: startup } = await supabase
+          .from('startups')
+          .select('*')
+          .eq('user_id', profile.id)
+          .single()
+        
+        if (startup) {
+          setStartupData(startup)
+          await loadStartupPosts(startup)
+        }
+      }
+      setLoading(false)
+      return
+    }
+
+    // Check if it's a startup username
+    const { data: startup } = await supabase
+      .from('startups')
+      .select('*')
+      .eq('username', cleanUsername)
+      .single()
+
+    if (startup) {
+      setStartupData(startup)
+      
+      // Get owner profile
+      const { data: ownerProfile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', startup.user_id)
+        .single()
+      setProfileData(ownerProfile)
+
+      await loadStartupPosts(startup)
+      setLoading(false)
+      return
+    }
+
+    // Not found
+    setLoading(false)
+  }, [cleanUsername, user, supabase, loadStartupPosts])
 
   useEffect(() => {
-    loadProfile()
-  }, [loadProfile])
+    if (isInitialized && user) {
+      loadProfile()
+    }
+  }, [isInitialized, user, loadProfile])
 
   const toggleFollow = async () => {
-    if (!startupData) return
+    if (!startupData || !user || !supabase) return
     
     try {
       if (isFollowing) {
         await supabase.from('follows').delete()
-          .eq('user_id', currentUser.id)
+          .eq('user_id', user.id)
           .eq('startup_id', startupData.id)
         setFollowersCount(prev => prev - 1)
       } else {
         await supabase.from('follows').insert({
-          user_id: currentUser.id,
+          user_id: user.id,
           startup_id: startupData.id
         })
         setFollowersCount(prev => prev + 1)
@@ -175,13 +181,13 @@ export default function UsernamePage() {
   }
 
   const startConversation = async () => {
-    if (!profileData?.id) return
+    if (!profileData?.id || !user || !supabase) return
 
     try {
       const { data: existing1 } = await supabase
         .from('conversations')
         .select('id')
-        .eq('participant_1', currentUser.id)
+        .eq('participant_1', user.id)
         .eq('participant_2', profileData.id)
         .maybeSingle()
 
@@ -189,7 +195,7 @@ export default function UsernamePage() {
         .from('conversations')
         .select('id')
         .eq('participant_1', profileData.id)
-        .eq('participant_2', currentUser.id)
+        .eq('participant_2', user.id)
         .maybeSingle()
 
       const existing = existing1 || existing2
@@ -200,7 +206,7 @@ export default function UsernamePage() {
         const { data: newConvo, error } = await supabase
           .from('conversations')
           .insert({
-            participant_1: currentUser.id,
+            participant_1: user.id,
             participant_2: profileData.id,
             is_accepted: false
           })
@@ -216,9 +222,9 @@ export default function UsernamePage() {
   }
 
   const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
-  const isOwnProfile = currentUser?.id === profileData?.id
+  const isOwnProfile = user?.id === profileData?.id
 
-  if (loading) {
+  if (!isInitialized || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -324,7 +330,7 @@ export default function UsernamePage() {
             {posts.length > 0 ? (
               <div className="space-y-4">
                 {posts.map(post => (
-                  <PostCard key={post.id} post={post} currentUserId={currentUser?.id} />
+                  <PostCard key={post.id} post={post} currentUserId={user?.id} />
                 ))}
               </div>
             ) : (
