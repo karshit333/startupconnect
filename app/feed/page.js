@@ -9,7 +9,7 @@ import FeedSkeleton, { CardSkeleton } from '@/components/FeedSkeleton'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { TrendingUp, Calendar, Users, ArrowRight } from 'lucide-react'
+import { TrendingUp, Calendar, Users, ArrowRight, Bookmark } from 'lucide-react'
 import Link from 'next/link'
 
 export default function FeedPage() {
@@ -88,10 +88,10 @@ export default function FeedPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-muted/30">
+      <div className="min-h-screen bg-background">
         <Navbar />
         <div className="container mx-auto px-4 py-6">
-          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 max-w-[1128px] mx-auto">
             <div className="hidden lg:block">
               <CardSkeleton />
             </div>
@@ -109,34 +109,42 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
+    <div className="min-h-screen bg-background">
       <Navbar />
       <div className="container mx-auto px-4 py-6">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-          {/* Left Sidebar */}
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 max-w-[1128px] mx-auto">
+          {/* Left Sidebar - Profile Card */}
           <div className="hidden lg:block">
             <Card className="overflow-hidden">
-              <div className="h-16 bg-gradient-to-r from-foreground/5 to-foreground/10" />
-              <CardContent className="pt-0 -mt-8">
-                <div className="text-center">
-                  <Avatar className="h-16 w-16 mx-auto border-4 border-background shadow-sm">
+              <div className="h-14 bg-gradient-to-r from-primary/30 to-primary/10" />
+              <div className="-mt-7 px-4 pb-4">
+                <Link href={`/profile/${user?.id}`}>
+                  <Avatar className="h-16 w-16 border-2 border-white ring-2 ring-background">
                     <AvatarImage src={profile?.avatar_url} />
-                    <AvatarFallback className="text-lg bg-muted">{getInitials(profile?.full_name)}</AvatarFallback>
+                    <AvatarFallback className="text-lg bg-primary/10 text-primary">{getInitials(profile?.full_name)}</AvatarFallback>
                   </Avatar>
-                  <h3 className="font-semibold mt-3">{profile?.full_name}</h3>
-                  <p className="text-sm text-muted-foreground capitalize">{profile?.role}</p>
-                  {profile?.bio && (
-                    <p className="text-sm text-muted-foreground mt-2 line-clamp-2">{profile?.bio}</p>
-                  )}
-                </div>
-                <div className="mt-4 pt-4 border-t">
-                  <Link href={`/profile/${user?.id}`}>
-                    <Button variant="outline" className="w-full" size="sm">
-                      View Profile
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
+                </Link>
+                <Link href={`/profile/${user?.id}`} className="block mt-2">
+                  <h3 className="font-semibold hover:underline">{profile?.full_name}</h3>
+                </Link>
+                {profile?.bio ? (
+                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{profile?.bio}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground capitalize">{profile?.role}</p>
+                )}
+              </div>
+              <div className="border-t px-4 py-3">
+                <Link href={`/profile/${user?.id}`} className="text-xs text-muted-foreground hover:text-primary flex items-center justify-between">
+                  <span>Profile viewers</span>
+                  <span className="text-primary font-semibold">12</span>
+                </Link>
+              </div>
+              <div className="border-t px-4 py-3">
+                <Link href="/saved" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary">
+                  <Bookmark className="h-4 w-4" />
+                  Saved items
+                </Link>
+              </div>
             </Card>
           </div>
 
@@ -145,15 +153,15 @@ export default function FeedPage() {
             {posts.length === 0 ? (
               <Card>
                 <CardContent className="py-16 text-center">
-                  <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
-                    <Users className="h-6 w-6 text-muted-foreground" />
+                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
+                    <Users className="h-8 w-8 text-primary" />
                   </div>
-                  <h3 className="font-semibold mb-2">No posts yet</h3>
+                  <h3 className="font-semibold text-lg mb-2">No posts yet</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Follow startups to see their updates here.
+                    Follow startups to see their updates in your feed
                   </p>
                   <Link href="/search">
-                    <Button>
+                    <Button className="bg-primary hover:bg-primary/90">
                       Discover Startups
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -161,7 +169,7 @@ export default function FeedPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-2">
                 {posts.map((post) => (
                   <PostCard
                     key={post.id}
@@ -174,16 +182,16 @@ export default function FeedPage() {
           </div>
 
           {/* Right Sidebar */}
-          <div className="hidden lg:block space-y-4">
+          <div className="hidden lg:block space-y-2">
             {/* Trending Startups */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <TrendingUp className="h-4 w-4" />
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold flex items-center justify-between">
                   Trending Startups
+                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="space-y-1 pb-2">
                 {trendingStartups.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-2">No startups yet</p>
                 ) : (
@@ -191,39 +199,39 @@ export default function FeedPage() {
                     <Link
                       key={startup.id}
                       href={`/startup/${startup.id}`}
-                      className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                      className="flex items-center gap-3 p-2 -mx-2 rounded hover:bg-secondary transition-colors"
                     >
-                      <Avatar className="h-9 w-9">
+                      <Avatar className="h-10 w-10">
                         <AvatarImage src={startup.logo_url} />
-                        <AvatarFallback className="text-xs bg-muted">
+                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
                           {startup.name?.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium truncate">{startup.name}</p>
+                        <p className="text-sm font-semibold truncate">{startup.name}</p>
                         <p className="text-xs text-muted-foreground capitalize">{startup.domain}</p>
                       </div>
                     </Link>
                   ))
                 )}
-                <Link href="/search">
-                  <Button variant="ghost" className="w-full mt-2" size="sm">
-                    See all
-                    <ArrowRight className="ml-2 h-3 w-3" />
-                  </Button>
-                </Link>
               </CardContent>
+              <div className="border-t p-2">
+                <Link href="/search" className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1 py-1">
+                  View all startups
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
             </Card>
 
             {/* Upcoming Events */}
             <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm font-medium flex items-center gap-2">
-                  <Calendar className="h-4 w-4" />
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base font-semibold flex items-center justify-between">
                   Upcoming Events
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardTitle>
               </CardHeader>
-              <CardContent className="space-y-1">
+              <CardContent className="space-y-1 pb-2">
                 {upcomingEvents.length === 0 ? (
                   <p className="text-sm text-muted-foreground py-2">No upcoming events</p>
                 ) : (
@@ -231,9 +239,9 @@ export default function FeedPage() {
                     <Link
                       key={event.id}
                       href="/events"
-                      className="block p-2 rounded-lg hover:bg-muted transition-colors"
+                      className="block p-2 -mx-2 rounded hover:bg-secondary transition-colors"
                     >
-                      <p className="text-sm font-medium truncate">{event.title}</p>
+                      <p className="text-sm font-semibold truncate">{event.title}</p>
                       <p className="text-xs text-muted-foreground">
                         {new Date(event.event_date).toLocaleDateString('en-IN', {
                           month: 'short',
@@ -244,13 +252,13 @@ export default function FeedPage() {
                     </Link>
                   ))
                 )}
-                <Link href="/events">
-                  <Button variant="ghost" className="w-full mt-2" size="sm">
-                    View all events
-                    <ArrowRight className="ml-2 h-3 w-3" />
-                  </Button>
-                </Link>
               </CardContent>
+              <div className="border-t p-2">
+                <Link href="/events" className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1 py-1">
+                  View all events
+                  <ArrowRight className="h-3 w-3" />
+                </Link>
+              </div>
             </Card>
           </div>
         </div>
