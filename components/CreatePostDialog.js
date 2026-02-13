@@ -67,6 +67,12 @@ export default function CreatePostDialog({ open, onOpenChange, startup, onPostCr
   }
 
   const createPost = async () => {
+    // Safety check - prevent unapproved startups from posting
+    if (!startup?.is_approved) {
+      toast.error('Your startup must be approved before you can post')
+      return
+    }
+
     if (!content.trim() && images.length === 0) {
       toast.error('Please write something or add an image')
       return
