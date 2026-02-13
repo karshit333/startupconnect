@@ -82,11 +82,19 @@ export default function PostCard({ post, currentUserId, onPostUpdate }) {
       const { data, error } = await supabase
         .from('comments')
         .insert({ post_id: post.id, user_id: currentUserId, content: newComment.trim() })
-        .select('*, profiles:user_id (full_name, avatar_url, username)')
+        .select('*')
         .single()
 
       if (error) throw error
-      setComments(prev => [...prev, data])
+      
+      // Fetch the profile separately
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url, username')
+        .eq('id', currentUserId)
+        .single()
+      
+      setComments(prev => [...prev, { ...data, profiles: profileData }])
       setNewComment('')
     } catch (error) {
       toast.error('Failed to add comment')
