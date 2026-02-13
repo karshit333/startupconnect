@@ -73,9 +73,7 @@ export default function Navbar() {
           {/* Logo & Search */}
           <div className="flex items-center gap-3">
             <Link href="/feed" className="flex items-center">
-              <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
-                <span className="text-background font-bold text-lg">SC</span>
-              </div>
+              <img src="/logo.png" alt="SUCI" className="h-8" />
             </Link>
             
             {/* Search Bar */}
