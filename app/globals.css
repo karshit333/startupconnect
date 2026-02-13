@@ -4,49 +4,27 @@
 
 @layer base {
   :root {
-    /* LinkedIn-inspired theme */
-    --background: 210 20% 96%; /* Light gray background like LinkedIn */
-    --foreground: 210 20% 12%; /* Dark text */
-    --card: 0 0% 100%; /* White cards */
-    --card-foreground: 210 20% 12%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 210 20% 12%;
-    --primary: 210 100% 40%; /* LinkedIn blue */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 15% 92%; /* Light gray */
-    --secondary-foreground: 210 20% 12%;
-    --muted: 210 15% 94%;
-    --muted-foreground: 210 10% 45%;
-    --accent: 210 15% 92%;
-    --accent-foreground: 210 20% 12%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 210 15% 88%;
-    --input: 210 15% 88%;
-    --ring: 210 100% 40%;
+    /* Dark Black & Gray Theme */
+    --background: 0 0% 7%; /* Very dark background #121212 */
+    --foreground: 0 0% 95%; /* White text */
+    --card: 0 0% 10%; /* Slightly lighter card #1a1a1a */
+    --card-foreground: 0 0% 95%;
+    --popover: 0 0% 10%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 0 0% 95%; /* White as primary */
+    --primary-foreground: 0 0% 7%;
+    --secondary: 0 0% 15%; /* Dark gray */
+    --secondary-foreground: 0 0% 95%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 55%; /* Gray text */
+    --accent: 0 0% 18%;
+    --accent-foreground: 0 0% 95%;
+    --destructive: 0 60% 50%;
+    --destructive-foreground: 0 0% 95%;
+    --border: 0 0% 18%; /* Dark border */
+    --input: 0 0% 15%;
+    --ring: 0 0% 60%;
     --radius: 0.5rem;
-  }
-
-  .dark {
-    --background: 210 20% 8%;
-    --foreground: 210 15% 95%;
-    --card: 210 20% 12%;
-    --card-foreground: 210 15% 95%;
-    --popover: 210 20% 12%;
-    --popover-foreground: 210 15% 95%;
-    --primary: 210 100% 50%;
-    --primary-foreground: 0 0% 100%;
-    --secondary: 210 15% 18%;
-    --secondary-foreground: 210 15% 95%;
-    --muted: 210 15% 18%;
-    --muted-foreground: 210 10% 60%;
-    --accent: 210 15% 18%;
-    --accent-foreground: 210 15% 95%;
-    --destructive: 0 62% 50%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 210 15% 22%;
-    --input: 210 15% 22%;
-    --ring: 210 100% 50%;
   }
 }
 
@@ -59,25 +37,25 @@
     font-feature-settings: "rlig" 1, "calt" 1;
   }
   
-  /* LinkedIn-style Typography */
+  /* Typography */
   h1 {
-    @apply text-2xl font-semibold tracking-tight text-foreground;
+    @apply text-2xl font-semibold tracking-tight;
   }
   h2 {
-    @apply text-xl font-semibold tracking-tight text-foreground;
+    @apply text-xl font-semibold tracking-tight;
   }
   h3 {
-    @apply text-base font-semibold text-foreground;
+    @apply text-base font-semibold;
   }
   h4 {
-    @apply text-sm font-semibold text-foreground;
+    @apply text-sm font-semibold;
   }
   p {
-    @apply leading-normal text-foreground/90;
+    @apply leading-normal;
   }
 }
 
-/* LinkedIn-style Skeleton Animation */
+/* Dark Skeleton Animation */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -91,35 +69,35 @@
   @apply rounded;
   background: linear-gradient(
     90deg,
-    hsl(210 15% 90%) 25%,
-    hsl(210 15% 96%) 50%,
-    hsl(210 15% 90%) 75%
+    hsl(0 0% 15%) 25%,
+    hsl(0 0% 20%) 50%,
+    hsl(0 0% 15%) 75%
   );
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
 }
 
-/* Custom Scrollbar - LinkedIn style */
+/* Dark Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-transparent;
+  @apply bg-background;
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-foreground/20 rounded-full;
+  @apply bg-white/20 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  @apply bg-foreground/30;
+  @apply bg-white/30;
 }
 
 /* Focus styles */
 *:focus-visible {
-  @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-background;
+  @apply outline-none ring-2 ring-white/30 ring-offset-2 ring-offset-background;
 }
 
 /* Button transitions */
@@ -127,12 +105,7 @@ button {
   @apply transition-all duration-150;
 }
 
-/* LinkedIn-style card hover */
+/* Card hover */
 .card-hover {
-  @apply transition-shadow duration-200 hover:shadow-md;
-}
-
-/* LinkedIn blue link */
-.link-primary {
-  @apply text-primary hover:text-primary/80 hover:underline;
+  @apply transition-all duration-200 hover:bg-white/5;
 }
