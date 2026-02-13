@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Rocket, Home, Search, MessageSquare, Calendar, Bell, User, Building2, Settings, LogOut, Shield } from 'lucide-react'
+import { Home, Search, MessageSquare, Calendar, User, Building2, Settings, LogOut, Shield, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 
 export default function Navbar() {
@@ -64,23 +64,27 @@ export default function Navbar() {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
   }
 
+  const isActive = (href) => pathname === href
+
   return (
-    <header className="sticky top-0 z-50 bg-white border-b shadow-sm">
+    <header className="sticky top-0 z-50 bg-background border-b">
       <div className="container mx-auto px-4">
         <div className="flex items-center justify-between h-14">
           {/* Logo */}
           <Link href="/feed" className="flex items-center gap-2">
-            <Rocket className="h-8 w-8 text-primary" />
-            <span className="text-lg font-bold text-primary hidden sm:inline">SCI</span>
+            <div className="w-8 h-8 bg-foreground rounded-lg flex items-center justify-center">
+              <span className="text-background font-bold text-sm">SC</span>
+            </div>
+            <span className="text-base font-semibold tracking-tight hidden sm:inline">Startup Connect</span>
           </Link>
 
           {/* Search Bar */}
-          <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-md mx-4">
+          <form onSubmit={handleSearch} className="hidden md:flex flex-1 max-w-sm mx-6">
             <div className="relative w-full">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
                 placeholder="Search startups, people..."
-                className="pl-10 bg-muted/50"
+                className="pl-9 bg-muted/50 border-0 focus-visible:ring-1"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
@@ -92,12 +96,16 @@ export default function Navbar() {
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
                 <Button
-                  variant={pathname === item.href ? 'secondary' : 'ghost'}
+                  variant="ghost"
                   size="sm"
-                  className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3"
+                  className={`flex flex-col items-center gap-0.5 h-auto py-2 px-3 rounded-lg ${
+                    isActive(item.href) 
+                      ? 'bg-muted text-foreground' 
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
                 >
-                  <item.icon className="h-5 w-5" />
-                  <span className="text-xs hidden lg:inline">{item.label}</span>
+                  <item.icon className="h-5 w-5" strokeWidth={isActive(item.href) ? 2 : 1.5} />
+                  <span className="text-[10px] font-medium hidden lg:inline">{item.label}</span>
                 </Button>
               </Link>
             ))}
@@ -105,18 +113,22 @@ export default function Navbar() {
             {/* Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="flex flex-col items-center gap-0.5 h-auto py-1.5 px-3">
-                  <Avatar className="h-6 w-6">
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="flex items-center gap-1.5 h-auto py-2 px-2 rounded-lg text-muted-foreground hover:text-foreground"
+                >
+                  <Avatar className="h-7 w-7">
                     <AvatarImage src={profile?.avatar_url} />
-                    <AvatarFallback className="text-xs">{getInitials(profile?.full_name)}</AvatarFallback>
+                    <AvatarFallback className="text-xs bg-muted">{getInitials(profile?.full_name)}</AvatarFallback>
                   </Avatar>
-                  <span className="text-xs hidden lg:inline">Me</span>
+                  <ChevronDown className="h-3 w-3 hidden lg:inline" />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-56">
                 <DropdownMenuLabel>
                   <div className="flex flex-col">
-                    <span>{profile?.full_name || 'User'}</span>
+                    <span className="font-medium">{profile?.full_name || 'User'}</span>
                     <span className="text-xs font-normal text-muted-foreground">{user?.email}</span>
                   </div>
                 </DropdownMenuLabel>
@@ -142,7 +154,7 @@ export default function Navbar() {
                   Settings
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
+                <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign Out
                 </DropdownMenuItem>
