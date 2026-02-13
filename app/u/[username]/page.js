@@ -58,7 +58,7 @@ export default function UsernamePage() {
         id, content, image_url, created_at, startup_id,
         startups (id, name, logo_url, domain, username),
         likes (user_id),
-        comments (id)
+        comments (id, content, created_at, user_id)
       `).eq('startup_id', startup.id).order('created_at', { ascending: false }),
       supabase.from('follows').select('id').eq('user_id', user.id).eq('startup_id', startup.id).maybeSingle(),
       supabase.from('follows').select('id', { count: 'exact' }).eq('startup_id', startup.id),
@@ -72,6 +72,21 @@ export default function UsernamePage() {
 
     const postsData = postsResult.data || []
     const savedPostsSet = new Set(savedResult.data?.map(sp => sp.post_id) || [])
+
+    // Batch fetch comment author profiles
+    const allCommentUserIds = new Set()
+    postsData.forEach(post => {
+      post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
+    })
+
+    let profilesMap = {}
+    if (allCommentUserIds.size > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, username')
+        .in('id', Array.from(allCommentUserIds))
+      profiles?.forEach(p => { profilesMap[p.id] = p })
+    }
 
     const processedPosts = postsData.map(post => ({
       ...post,
