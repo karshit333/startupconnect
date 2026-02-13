@@ -6,8 +6,7 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Separator } from '@/components/ui/separator'
-import { Heart, MessageCircle, Share2, Send, MoreHorizontal, Bookmark } from 'lucide-react'
+import { ThumbsUp, MessageSquare, Share2, Send, MoreHorizontal, Bookmark, Globe } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -89,73 +88,90 @@ export default function PostCard({ post, currentUserId, onUpdate }) {
 
   return (
     <Card className="overflow-hidden">
-      <CardHeader className="pb-3">
+      <CardHeader className="pb-0 pt-4 px-4">
         <div className="flex items-start justify-between">
-          <Link href={`/startup/${post.startup_id}`} className="flex items-center gap-3 group">
-            <Avatar className="h-11 w-11">
+          <Link href={`/startup/${post.startup_id}`} className="flex items-start gap-2 group">
+            <Avatar className="h-12 w-12">
               <AvatarImage src={post.startups?.logo_url} />
-              <AvatarFallback className="bg-muted text-sm">{getInitials(post.startups?.name)}</AvatarFallback>
+              <AvatarFallback className="bg-primary/10 text-primary text-sm">{getInitials(post.startups?.name)}</AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="text-sm font-semibold group-hover:underline">{post.startups?.name}</h3>
-              <p className="text-xs text-muted-foreground">
-                {post.startups?.domain && <span className="capitalize">{post.startups.domain}</span>}
-                <span className="mx-1">·</span>
+              <h3 className="text-sm font-semibold group-hover:text-primary group-hover:underline leading-tight">{post.startups?.name}</h3>
+              <p className="text-xs text-muted-foreground leading-tight mt-0.5 capitalize">{post.startups?.domain}</p>
+              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
                 {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                <span>·</span>
+                <Globe className="h-3 w-3" />
               </p>
             </div>
           </Link>
           <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
-            <MoreHorizontal className="h-4 w-4" />
+            <MoreHorizontal className="h-5 w-5" />
           </Button>
         </div>
       </CardHeader>
       
-      <CardContent className="pb-3">
+      <CardContent className="px-4 pt-3 pb-2">
         <p className="text-sm whitespace-pre-wrap leading-relaxed">{post.content}</p>
         {post.image_url && (
-          <div className="mt-3 rounded-lg overflow-hidden border bg-muted">
+          <div className="mt-3 -mx-4 border-y">
             <img
               src={post.image_url}
               alt="Post image"
-              className="w-full h-auto max-h-[400px] object-cover"
+              className="w-full h-auto"
             />
           </div>
         )}
       </CardContent>
 
-      {/* Stats */}
-      <div className="px-6 py-2 flex items-center justify-between text-xs text-muted-foreground">
-        <span>{likesCount} {likesCount === 1 ? 'like' : 'likes'}</span>
-        <span>{comments.length} {comments.length === 1 ? 'comment' : 'comments'}</span>
-      </div>
-
-      <Separator />
+      {/* Engagement Stats */}
+      {(likesCount > 0 || comments.length > 0) && (
+        <div className="px-4 py-2 flex items-center justify-between text-xs text-muted-foreground">
+          {likesCount > 0 && (
+            <button className="flex items-center gap-1 hover:text-primary hover:underline" onClick={() => {}}>
+              <span className="w-4 h-4 rounded-full bg-primary flex items-center justify-center">
+                <ThumbsUp className="h-2.5 w-2.5 text-white" />
+              </span>
+              {likesCount}
+            </button>
+          )}
+          {comments.length > 0 && (
+            <button className="hover:text-primary hover:underline" onClick={() => setShowComments(!showComments)}>
+              {comments.length} {comments.length === 1 ? 'comment' : 'comments'}
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Actions */}
-      <CardFooter className="p-1">
+      <div className="border-t mx-4" />
+      <CardFooter className="p-1 px-2">
         <div className="flex items-center justify-between w-full">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleLike}
-            className={`flex-1 h-10 ${liked ? 'text-foreground' : 'text-muted-foreground'}`}
+            className={`flex-1 h-10 gap-1.5 ${liked ? 'text-primary' : 'text-muted-foreground hover:text-foreground'}`}
           >
-            <Heart className={`h-4 w-4 mr-2 ${liked ? 'fill-current' : ''}`} />
-            Like
+            <ThumbsUp className={`h-5 w-5 ${liked ? 'fill-primary' : ''}`} strokeWidth={1.5} />
+            <span className="text-xs font-semibold">Like</span>
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowComments(!showComments)}
-            className="flex-1 h-10 text-muted-foreground"
+            className="flex-1 h-10 gap-1.5 text-muted-foreground hover:text-foreground"
           >
-            <MessageCircle className="h-4 w-4 mr-2" />
-            Comment
+            <MessageSquare className="h-5 w-5" strokeWidth={1.5} />
+            <span className="text-xs font-semibold">Comment</span>
           </Button>
-          <Button variant="ghost" size="sm" className="flex-1 h-10 text-muted-foreground">
-            <Bookmark className="h-4 w-4 mr-2" />
-            Save
+          <Button variant="ghost" size="sm" className="flex-1 h-10 gap-1.5 text-muted-foreground hover:text-foreground">
+            <Share2 className="h-5 w-5" strokeWidth={1.5} />
+            <span className="text-xs font-semibold">Share</span>
+          </Button>
+          <Button variant="ghost" size="sm" className="flex-1 h-10 gap-1.5 text-muted-foreground hover:text-foreground">
+            <Send className="h-5 w-5" strokeWidth={1.5} />
+            <span className="text-xs font-semibold">Send</span>
           </Button>
         </div>
       </CardFooter>
@@ -163,35 +179,49 @@ export default function PostCard({ post, currentUserId, onUpdate }) {
       {/* Comments Section */}
       {showComments && (
         <div className="px-4 pb-4 border-t">
-          <div className="pt-3 space-y-3">
-            {comments.map((comment) => (
-              <div key={comment.id} className="flex gap-2">
-                <Avatar className="h-8 w-8">
-                  <AvatarImage src={comment.profiles?.avatar_url} />
-                  <AvatarFallback className="text-xs bg-muted">
-                    {getInitials(comment.profiles?.full_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="flex-1 bg-muted rounded-lg px-3 py-2">
-                  <p className="text-sm font-medium">{comment.profiles?.full_name}</p>
-                  <p className="text-sm text-muted-foreground">{comment.content}</p>
-                </div>
-              </div>
-            ))}
-
-            {/* Comment Input */}
-            <form onSubmit={handleComment} className="flex gap-2 pt-2">
+          {/* Comment Input */}
+          <form onSubmit={handleComment} className="flex gap-2 py-3">
+            <Avatar className="h-8 w-8 shrink-0">
+              <AvatarFallback className="text-xs bg-primary/10 text-primary">U</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 relative">
               <Input
-                placeholder="Write a comment..."
+                placeholder="Add a comment..."
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 disabled={loadingComment}
-                className="text-sm"
+                className="pr-10 rounded-full h-9 text-sm"
               />
-              <Button type="submit" size="icon" disabled={loadingComment || !newComment.trim()}>
-                <Send className="h-4 w-4" />
-              </Button>
-            </form>
+              {newComment.trim() && (
+                <Button 
+                  type="submit" 
+                  size="icon"
+                  variant="ghost"
+                  disabled={loadingComment}
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-primary"
+                >
+                  <Send className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+          </form>
+
+          {/* Comments List */}
+          <div className="space-y-3">
+            {comments.map((comment) => (
+              <div key={comment.id} className="flex gap-2">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarImage src={comment.profiles?.avatar_url} />
+                  <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                    {getInitials(comment.profiles?.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 bg-secondary rounded-lg px-3 py-2">
+                  <p className="text-sm font-semibold">{comment.profiles?.full_name}</p>
+                  <p className="text-sm text-foreground/90">{comment.content}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </div>
       )}
