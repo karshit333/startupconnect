@@ -90,7 +90,10 @@ export default function UsernamePage() {
 
     const processedPosts = postsData.map(post => ({
       ...post,
-      comments: post.comments || [],
+      comments: post.comments?.map(comment => ({
+        ...comment,
+        profiles: profilesMap[comment.user_id] || null
+      })) || [],
       likes_count: post.likes?.length || 0,
       user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
       user_has_saved: savedPostsSet.has(post.id)
