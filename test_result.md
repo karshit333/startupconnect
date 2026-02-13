@@ -265,3 +265,42 @@ agent_communication:
       - is_accepted, is_read columns in conversations/messages
       
       Testing needed for all features once preview is available.
+
+  - agent: "main"
+    message: |
+      ## Performance & Bug Fix Update (Phase 1)
+      
+      Fixed the following critical issues:
+      
+      ### 1. Post Feed Sync Issue
+      - Added real-time Supabase subscription for INSERT events on posts table in feed page
+      - Feed now auto-refreshes when new posts are created
+      - Fixed saved posts status not being fetched (added user_has_saved field)
+      
+      ### 2. Performance Optimizations (N+1 Query Fixes)
+      - **Feed Page**: Refactored from cascading async calls to batch queries
+        - All comment author profiles fetched in ONE query instead of per-post
+        - Saved posts status fetched in ONE query
+        - Profile, posts, startups, events fetched in parallel
+      - **My Startup Page**: Same batch optimization applied
+      - **Username Profile Page**: Same batch optimization applied
+      - **Messages Page**: Complete refactor
+        - All participant profiles fetched in ONE query
+        - All messages fetched in ONE query, grouped by conversation
+        - Unread counts calculated from batch data
+      - **Navbar**: Optimized unread count calculation
+        - Fetch all unread messages in ONE query instead of per-conversation
+      
+      ### 3. Messaging Notification Bug Fix
+      - Added UPDATE event listener to Navbar's real-time subscription
+        - Now listens for both INSERT (new messages) and UPDATE (read status)
+        - Badge should clear when messages are marked as read
+      
+      ### Files Modified:
+      - app/feed/page.js - Performance + real-time subscription
+      - app/my-startup/page.js - Performance optimization
+      - app/u/[username]/page.js - Performance optimization
+      - app/messages/page.js - Major performance refactor
+      - components/Navbar.js - Bug fix + performance
+      
+      **Note**: Preview is currently unavailable externally but app runs locally without errors.
