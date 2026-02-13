@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useUser } from '@/lib/context/UserContext'
 import Navbar from '@/components/Navbar'
 import PostCard from '@/components/PostCard'
 import CreatePostDialog from '@/components/CreatePostDialog'
@@ -12,48 +12,31 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Building2, MapPin, Users, Globe, Edit, Plus, CheckCircle, Clock, UserPlus } from 'lucide-react'
 import { toast } from 'sonner'
-import Link from 'next/link'
 
 export default function MyStartupPage() {
-  const [startup, setStartup] = useState(null)
+  const { user, profile, startup, supabase, isInitialized } = useUser()
   const [posts, setPosts] = useState([])
-  const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [followersCount, setFollowersCount] = useState(0)
   const [postDialogOpen, setPostDialogOpen] = useState(false)
   const router = useRouter()
-  const supabase = createClient()
+
+  // Redirect if not logged in or not a startup
+  useEffect(() => {
+    if (isInitialized) {
+      if (!user) {
+        router.push('/auth/login')
+      } else if (profile?.role !== 'startup') {
+        toast.error('This page is for startup accounts only')
+        router.push('/feed')
+      }
+    }
+  }, [isInitialized, user, profile, router])
 
   const loadData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
-      router.push('/auth/login')
-      return
-    }
-    setCurrentUser(user)
+    if (!startup || !supabase || !user) return
 
-    // Check if user is a startup
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', user.id)
-      .single()
-
-    if (profile?.role !== 'startup') {
-      toast.error('This page is for startup accounts only')
-      router.push('/feed')
-      return
-    }
-
-    // Load startup
-    const { data: startupData } = await supabase
-      .from('startups')
-      .select('*')
-      .eq('user_id', user.id)
-      .single()
-    setStartup(startupData)
-
-    if (startupData) {
+    try {
       // Load posts and followers count in parallel
       const [postsResult, followersResult] = await Promise.all([
         supabase.from('posts').select(`
@@ -61,8 +44,8 @@ export default function MyStartupPage() {
           startups (id, name, logo_url, domain, username),
           likes (user_id),
           comments (id, content, created_at, user_id)
-        `).eq('startup_id', startupData.id).order('created_at', { ascending: false }),
-        supabase.from('follows').select('id', { count: 'exact' }).eq('startup_id', startupData.id)
+        `).eq('startup_id', startup.id).order('created_at', { ascending: false }),
+        supabase.from('follows').select('id', { count: 'exact' }).eq('startup_id', startup.id)
       ])
 
       setFollowersCount(followersResult.count || 0)
@@ -108,17 +91,22 @@ export default function MyStartupPage() {
         user_has_saved: savedPostsSet.has(post.id)
       }))
       setPosts(processedPosts)
+    } catch (error) {
+      console.error('Error loading startup data:', error)
+    } finally {
+      setLoading(false)
     }
-
-    setLoading(false)
-  }, [router, supabase])
+  }, [startup, supabase, user])
 
   useEffect(() => {
-    loadData()
-  }, [loadData])
+    if (isInitialized && startup) {
+      loadData()
+    } else if (isInitialized && !startup && profile?.role === 'startup') {
+      setLoading(false)
+    }
+  }, [isInitialized, startup, loadData, profile])
 
   const handlePostCreated = (newPost) => {
-    // Add post to local state immediately for instant feedback
     setPosts(prev => [{ ...newPost, user_has_saved: false }, ...prev])
   }
 
@@ -126,7 +114,7 @@ export default function MyStartupPage() {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || 'S'
   }
 
-  if (loading) {
+  if (!isInitialized || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -268,7 +256,7 @@ export default function MyStartupPage() {
                     <PostCard
                       key={post.id}
                       post={post}
-                      currentUserId={currentUser?.id}
+                      currentUserId={user?.id}
                     />
                   ))}
                 </div>
