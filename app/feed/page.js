@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/lib/context/UserContext'
 import Navbar from '@/components/Navbar'
@@ -12,23 +12,25 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { TrendingUp, Calendar, Users, ArrowRight, Bookmark } from 'lucide-react'
 import Link from 'next/link'
 
-// Module-level cache for feed data
+// Module-level cache for feed data - persists across navigations
 const feedCache = {
   posts: [],
   startups: [],
   events: [],
-  lastFetch: 0
+  lastFetch: 0,
+  profilesMap: {}
 }
 
 export default function FeedPage() {
   const { user, profile, supabase, isInitialized } = useUser()
-  // Initialize with cached data for instant display
+  // Initialize with cached data for INSTANT display
   const [posts, setPosts] = useState(feedCache.posts)
   const [trendingStartups, setTrendingStartups] = useState(feedCache.startups)
   const [upcomingEvents, setUpcomingEvents] = useState(feedCache.events)
   const [loading, setLoading] = useState(feedCache.posts.length === 0)
   const router = useRouter()
   const fetchingRef = useRef(false)
+  const mountedRef = useRef(true)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -37,35 +39,47 @@ export default function FeedPage() {
     }
   }, [isInitialized, user, router])
 
-  // Load feed data - with caching
+  // Cleanup on unmount
+  useEffect(() => {
+    mountedRef.current = true
+    return () => { mountedRef.current = false }
+  }, [])
+
+  // OPTIMIZED: Load feed data with aggressive caching and parallel fetching
   const loadFeedData = useCallback(async (forceRefresh = false) => {
     if (!user || !supabase) return
     if (fetchingRef.current) return
     
-    // Use cache if recent (within 30 seconds) and not forcing refresh
+    // Use cache if recent (within 60 seconds for better perf)
     const now = Date.now()
-    if (!forceRefresh && feedCache.posts.length > 0 && (now - feedCache.lastFetch) < 30000) {
-      setPosts(feedCache.posts)
-      setTrendingStartups(feedCache.startups)
-      setUpcomingEvents(feedCache.events)
-      setLoading(false)
+    const cacheAge = now - feedCache.lastFetch
+    if (!forceRefresh && feedCache.posts.length > 0 && cacheAge < 60000) {
+      if (mountedRef.current) {
+        setPosts(feedCache.posts)
+        setTrendingStartups(feedCache.startups)
+        setUpcomingEvents(feedCache.events)
+        setLoading(false)
+      }
       return
     }
 
     fetchingRef.current = true
 
     try {
-      // Fetch all data in parallel
-      const [postsResult, startupsResult, eventsResult] = await Promise.all([
+      // OPTIMIZED: Single parallel fetch for all main data
+      const [postsResult, startupsResult, eventsResult, savedResult] = await Promise.all([
         supabase.from('posts').select(`
-          *,
+          id, content, image_url, created_at, startup_id,
           startups (id, name, logo_url, domain, username),
           likes (user_id),
-          comments (id, content, created_at, user_id)
+          comments (id)
         `).order('created_at', { ascending: false }).limit(20),
-        supabase.from('startups').select('*').eq('is_approved', true).limit(5),
-        supabase.from('events').select('*').gte('event_date', new Date().toISOString()).order('event_date', { ascending: true }).limit(3)
+        supabase.from('startups').select('id, name, logo_url, domain, username').eq('is_approved', true).limit(5),
+        supabase.from('events').select('id, title, event_date, city').gte('event_date', new Date().toISOString()).order('event_date', { ascending: true }).limit(3),
+        supabase.from('saved_posts').select('post_id').eq('user_id', user.id)
       ])
+
+      if (!mountedRef.current) return
 
       // Update startups and events immediately
       const startups = startupsResult.data || []
@@ -75,44 +89,14 @@ export default function FeedPage() {
       setTrendingStartups(startups)
       setUpcomingEvents(events)
 
-      // Process posts
+      // Create saved posts lookup
+      const savedPostsSet = new Set(savedResult.data?.map(sp => sp.post_id) || [])
+
+      // Process posts with minimal transformation
       const postsData = postsResult.data || []
-      
-      // Collect all comment user IDs
-      const allCommentUserIds = new Set()
-      postsData.forEach(post => {
-        post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
-      })
-
-      // Batch fetch comment author profiles
-      let profilesMap = {}
-      if (allCommentUserIds.size > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url, username')
-          .in('id', Array.from(allCommentUserIds))
-        profiles?.forEach(p => { profilesMap[p.id] = p })
-      }
-
-      // Fetch saved posts status
-      const postIds = postsData.map(p => p.id)
-      let savedPostsSet = new Set()
-      if (postIds.length > 0) {
-        const { data: savedPosts } = await supabase
-          .from('saved_posts')
-          .select('post_id')
-          .eq('user_id', user.id)
-          .in('post_id', postIds)
-        savedPosts?.forEach(sp => savedPostsSet.add(sp.post_id))
-      }
-
-      // Process posts with all data
       const processedPosts = postsData.map(post => ({
         ...post,
-        comments: post.comments?.map(comment => ({
-          ...comment,
-          profiles: profilesMap[comment.user_id] || null
-        })) || [],
+        comments: post.comments || [],
         likes_count: post.likes?.length || 0,
         user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
         user_has_saved: savedPostsSet.has(post.id)
@@ -121,11 +105,15 @@ export default function FeedPage() {
       // Update cache and state
       feedCache.posts = processedPosts
       feedCache.lastFetch = Date.now()
-      setPosts(processedPosts)
+      
+      if (mountedRef.current) {
+        setPosts(processedPosts)
+        setLoading(false)
+      }
     } catch (error) {
       console.error('Error loading feed:', error)
+      if (mountedRef.current) setLoading(false)
     } finally {
-      setLoading(false)
       fetchingRef.current = false
     }
   }, [user, supabase])
@@ -137,22 +125,28 @@ export default function FeedPage() {
     }
   }, [isInitialized, user, loadFeedData])
 
-  // Real-time subscription for new posts
+  // OPTIMIZED: Debounced real-time subscription for new posts
   useEffect(() => {
     if (!supabase || !user) return
 
+    let refreshTimeout = null
     const channel = supabase
-      .channel('feed-posts')
+      .channel('feed-posts-' + user.id)
       .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'posts'
       }, () => {
-        loadFeedData(true)
+        // Debounce rapid inserts
+        if (refreshTimeout) clearTimeout(refreshTimeout)
+        refreshTimeout = setTimeout(() => {
+          loadFeedData(true)
+        }, 1000)
       })
       .subscribe()
 
     return () => {
+      if (refreshTimeout) clearTimeout(refreshTimeout)
       supabase.removeChannel(channel)
     }
   }, [supabase, user, loadFeedData])
