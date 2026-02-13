@@ -31,6 +31,85 @@ function MessagesContent() {
   const router = useRouter()
   const supabase = createClient()
 
+  const loadConversations = useCallback(async (user) => {
+    // Load all conversations
+    const { data: convosRaw } = await supabase
+      .from('conversations')
+      .select('*')
+      .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+      .order('updated_at', { ascending: false })
+
+    if (!convosRaw || convosRaw.length === 0) {
+      setConversations([])
+      setPendingConversations([])
+      return []
+    }
+
+    // Get all participant IDs
+    const participantIds = new Set()
+    convosRaw.forEach(c => {
+      if (c.participant_1 !== user.id) participantIds.add(c.participant_1)
+      if (c.participant_2 !== user.id) participantIds.add(c.participant_2)
+    })
+
+    // Batch fetch all participant profiles
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, username')
+      .in('id', Array.from(participantIds))
+
+    const profilesMap = {}
+    profiles?.forEach(p => { profilesMap[p.id] = p })
+
+    // Get conversation IDs for batch queries
+    const convoIds = convosRaw.map(c => c.id)
+
+    // Batch fetch last messages for all conversations
+    const { data: allMessages } = await supabase
+      .from('messages')
+      .select('*')
+      .in('conversation_id', convoIds)
+      .order('created_at', { ascending: false })
+
+    // Group messages by conversation and get last message
+    const lastMessageByConvo = {}
+    const unreadCountByConvo = {}
+    
+    allMessages?.forEach(msg => {
+      if (!lastMessageByConvo[msg.conversation_id]) {
+        lastMessageByConvo[msg.conversation_id] = msg
+      }
+      // Count unread messages (not from current user, not read)
+      if (msg.sender_id !== user.id && !msg.is_read) {
+        unreadCountByConvo[msg.conversation_id] = (unreadCountByConvo[msg.conversation_id] || 0) + 1
+      }
+    })
+
+    // Process conversations
+    const processedConvos = convosRaw.map(convo => {
+      const isParticipant1 = convo.participant_1 === user.id
+      const otherParticipantId = isParticipant1 ? convo.participant_2 : convo.participant_1
+      const isPending = !convo.is_accepted && convo.participant_1 !== user.id
+
+      return {
+        ...convo,
+        otherParticipant: profilesMap[otherParticipantId] || null,
+        lastMessage: lastMessageByConvo[convo.id] || null,
+        unreadCount: unreadCountByConvo[convo.id] || 0,
+        isPending
+      }
+    })
+
+    // Split into accepted and pending
+    const accepted = processedConvos.filter(c => !c.isPending)
+    const pending = processedConvos.filter(c => c.isPending)
+
+    setConversations(accepted)
+    setPendingConversations(pending)
+
+    return processedConvos
+  }, [supabase])
+
   useEffect(() => {
     async function init() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -40,70 +119,14 @@ function MessagesContent() {
       }
       setCurrentUser(user)
 
-      // Load all conversations
-      const { data: convosRaw, error: convosError } = await supabase
-        .from('conversations')
-        .select('*')
-        .or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
-        .order('updated_at', { ascending: false })
-
-      if (convosError) {
-        console.error('Error loading conversations:', convosError)
-      }
-
-      // Fetch profile data and process conversations
-      const processedConvos = await Promise.all((convosRaw || []).map(async (convo) => {
-        const isParticipant1 = convo.participant_1 === user.id
-        const otherParticipantId = isParticipant1 ? convo.participant_2 : convo.participant_1
-        
-        const { data: otherProfile } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url, username')
-          .eq('id', otherParticipantId)
-          .single()
-
-        // Get last message
-        const { data: lastMsg } = await supabase
-          .from('messages')
-          .select('content, sender_id, created_at, is_read')
-          .eq('conversation_id', convo.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle()
-
-        // Count unread messages for current user
-        const { count: unreadCount } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact' })
-          .eq('conversation_id', convo.id)
-          .neq('sender_id', user.id)
-          .eq('is_read', false)
-
-        // Determine if this is a pending conversation (initiated by other user, not yet responded to)
-        const isPending = !convo.is_accepted && convo.participant_1 !== user.id
-
-        return { 
-          ...convo, 
-          otherParticipant: otherProfile,
-          lastMessage: lastMsg,
-          unreadCount: unreadCount || 0,
-          isPending
-        }
-      }))
-
-      // Split into accepted and pending
-      const accepted = processedConvos.filter(c => c.is_accepted || c.participant_1 === currentUser?.id || !c.isPending)
-      const pending = processedConvos.filter(c => c.isPending)
-
-      setConversations(accepted)
-      setPendingConversations(pending)
+      const processedConvos = await loadConversations(user)
 
       // Handle initial chat selection
-      if (initialChatId) {
+      if (initialChatId && processedConvos.length > 0) {
         const initialConvo = processedConvos.find(c => c.id === initialChatId)
         if (initialConvo) {
           setSelectedConvo(initialConvo)
-          loadMessages(initialChatId)
+          loadMessages(initialChatId, user)
           if (initialConvo.isPending) {
             setActiveTab('requests')
           }
@@ -113,7 +136,7 @@ function MessagesContent() {
       setLoading(false)
     }
     init()
-  }, [])
+  }, [initialChatId, loadConversations, router, supabase])
 
   const loadMessages = async (convoId) => {
     const { data: messagesRaw, error: msgError } = await supabase
