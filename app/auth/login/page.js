@@ -56,10 +56,7 @@ export default function LoginPage() {
       {/* Header */}
       <header className="p-4">
         <Link href="/" className="flex items-center gap-2 w-fit">
-          <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
-            <span className="text-background font-bold text-lg">SC</span>
-          </div>
-          <span className="text-xl font-semibold">Startup Connect</span>
+          <img src="/logo.png" alt="SUCI" className="h-8" />
         </Link>
       </header>
 
