@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useUser } from '@/lib/context/UserContext'
 import Navbar from '@/components/Navbar'
@@ -12,13 +12,23 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { TrendingUp, Calendar, Users, ArrowRight, Bookmark } from 'lucide-react'
 import Link from 'next/link'
 
+// Module-level cache for feed data
+const feedCache = {
+  posts: [],
+  startups: [],
+  events: [],
+  lastFetch: 0
+}
+
 export default function FeedPage() {
   const { user, profile, supabase, isInitialized } = useUser()
-  const [posts, setPosts] = useState([])
-  const [trendingStartups, setTrendingStartups] = useState([])
-  const [upcomingEvents, setUpcomingEvents] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Initialize with cached data for instant display
+  const [posts, setPosts] = useState(feedCache.posts)
+  const [trendingStartups, setTrendingStartups] = useState(feedCache.startups)
+  const [upcomingEvents, setUpcomingEvents] = useState(feedCache.events)
+  const [loading, setLoading] = useState(feedCache.posts.length === 0)
   const router = useRouter()
+  const fetchingRef = useRef(false)
 
   // Redirect if not logged in
   useEffect(() => {
@@ -27,12 +37,25 @@ export default function FeedPage() {
     }
   }, [isInitialized, user, router])
 
-  // Load feed data
-  const loadFeedData = useCallback(async () => {
+  // Load feed data - with caching
+  const loadFeedData = useCallback(async (forceRefresh = false) => {
     if (!user || !supabase) return
+    if (fetchingRef.current) return
+    
+    // Use cache if recent (within 30 seconds) and not forcing refresh
+    const now = Date.now()
+    if (!forceRefresh && feedCache.posts.length > 0 && (now - feedCache.lastFetch) < 30000) {
+      setPosts(feedCache.posts)
+      setTrendingStartups(feedCache.startups)
+      setUpcomingEvents(feedCache.events)
+      setLoading(false)
+      return
+    }
+
+    fetchingRef.current = true
 
     try {
-      // Fetch posts, startups, and events in parallel
+      // Fetch all data in parallel
       const [postsResult, startupsResult, eventsResult] = await Promise.all([
         supabase.from('posts').select(`
           *,
@@ -44,28 +67,34 @@ export default function FeedPage() {
         supabase.from('events').select('*').gte('event_date', new Date().toISOString()).order('event_date', { ascending: true }).limit(3)
       ])
 
-      setTrendingStartups(startupsResult.data || [])
-      setUpcomingEvents(eventsResult.data || [])
+      // Update startups and events immediately
+      const startups = startupsResult.data || []
+      const events = eventsResult.data || []
+      feedCache.startups = startups
+      feedCache.events = events
+      setTrendingStartups(startups)
+      setUpcomingEvents(events)
 
-      // Process posts - collect all comment user IDs first to batch fetch
+      // Process posts
       const postsData = postsResult.data || []
+      
+      // Collect all comment user IDs
       const allCommentUserIds = new Set()
       postsData.forEach(post => {
         post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
       })
 
-      // Batch fetch all comment author profiles in one query
+      // Batch fetch comment author profiles
       let profilesMap = {}
       if (allCommentUserIds.size > 0) {
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name, avatar_url, username')
           .in('id', Array.from(allCommentUserIds))
-        
         profiles?.forEach(p => { profilesMap[p.id] = p })
       }
 
-      // Fetch saved posts status for current user
+      // Fetch saved posts status
       const postIds = postsData.map(p => p.id)
       let savedPostsSet = new Set()
       if (postIds.length > 0) {
@@ -74,11 +103,10 @@ export default function FeedPage() {
           .select('post_id')
           .eq('user_id', user.id)
           .in('post_id', postIds)
-        
         savedPosts?.forEach(sp => savedPostsSet.add(sp.post_id))
       }
 
-      // Process posts with all the data
+      // Process posts with all data
       const processedPosts = postsData.map(post => ({
         ...post,
         comments: post.comments?.map(comment => ({
@@ -90,21 +118,26 @@ export default function FeedPage() {
         user_has_saved: savedPostsSet.has(post.id)
       }))
 
+      // Update cache and state
+      feedCache.posts = processedPosts
+      feedCache.lastFetch = Date.now()
       setPosts(processedPosts)
     } catch (error) {
       console.error('Error loading feed:', error)
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
   }, [user, supabase])
 
+  // Load data when user is ready
   useEffect(() => {
     if (isInitialized && user) {
       loadFeedData()
     }
   }, [isInitialized, user, loadFeedData])
 
-  // Set up real-time subscription for new posts
+  // Real-time subscription for new posts
   useEffect(() => {
     if (!supabase || !user) return
 
@@ -115,7 +148,7 @@ export default function FeedPage() {
         schema: 'public',
         table: 'posts'
       }, () => {
-        loadFeedData()
+        loadFeedData(true)
       })
       .subscribe()
 
@@ -128,8 +161,8 @@ export default function FeedPage() {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
   }
 
-  // Show loading while checking auth
-  if (!isInitialized || loading) {
+  // Show loading only if no cached data
+  if (!isInitialized || (loading && posts.length === 0)) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -160,13 +193,13 @@ export default function FeedPage() {
             <Card className="bg-card border-border overflow-hidden">
               <div className="h-14 bg-gradient-to-r from-white/10 to-white/5" />
               <div className="-mt-6 px-4 pb-4">
-                <Link href={`/profile/${user?.id}`}>
+                <Link href={profile?.username ? `/u/${profile.username}` : `/profile/${user?.id}`}>
                   <Avatar className="h-14 w-14 border-2 border-card">
                     <AvatarImage src={profile?.avatar_url} />
                     <AvatarFallback className="bg-white/10">{getInitials(profile?.full_name)}</AvatarFallback>
                   </Avatar>
                 </Link>
-                <Link href={`/profile/${user?.id}`} className="block mt-2">
+                <Link href={profile?.username ? `/u/${profile.username}` : `/profile/${user?.id}`} className="block mt-2">
                   <h3 className="font-semibold hover:underline">{profile?.full_name}</h3>
                 </Link>
                 <p className="text-xs text-muted-foreground capitalize">{profile?.role}</p>
