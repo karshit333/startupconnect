@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
+import { useParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
@@ -12,8 +13,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { MapPin, Briefcase, GraduationCap, Mail, Calendar, Edit, UserPlus } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 
-export default function ProfilePage({ params }) {
-  const { id } = use(params)
+export default function ProfilePage() {
+  const { id } = useParams()
   const [profile, setProfile] = useState(null)
   const [currentUser, setCurrentUser] = useState(null)
   const [followedStartups, setFollowedStartups] = useState([])
