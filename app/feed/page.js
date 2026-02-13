@@ -42,23 +42,42 @@ export default function FeedPage() {
         .from('posts')
         .select(`
           *,
-          startups (id, name, logo_url, domain),
+          startups (id, name, logo_url, domain, username),
           likes (user_id),
-          comments (
-            id,
-            content,
-            created_at,
-            profiles:user_id (full_name, avatar_url)
-          )
+          comments (id, content, created_at, user_id)
         `)
         .order('created_at', { ascending: false })
         .limit(20)
 
-      const processedPosts = postsData?.map(post => ({
-        ...post,
-        likes_count: post.likes?.length || 0,
-        user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
-      })) || []
+      // Fetch profiles for comments
+      const processedPosts = await Promise.all((postsData || []).map(async (post) => {
+        // Get unique user IDs from comments
+        const commentUserIds = [...new Set(post.comments?.map(c => c.user_id) || [])]
+        
+        // Fetch profiles for comment authors
+        let profilesMap = {}
+        if (commentUserIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, full_name, avatar_url, username')
+            .in('id', commentUserIds)
+          
+          profiles?.forEach(p => { profilesMap[p.id] = p })
+        }
+
+        // Attach profiles to comments
+        const commentsWithProfiles = post.comments?.map(comment => ({
+          ...comment,
+          profiles: profilesMap[comment.user_id] || null
+        })) || []
+
+        return {
+          ...post,
+          comments: commentsWithProfiles,
+          likes_count: post.likes?.length || 0,
+          user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
+        }
+      }))
       setPosts(processedPosts)
 
       const { data: startups } = await supabase
