@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
@@ -24,92 +24,102 @@ export default function MyStartupPage() {
   const router = useRouter()
   const supabase = createClient()
 
-  useEffect(() => {
-    async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-      setCurrentUser(user)
-
-      // Check if user is a startup
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', user.id)
-        .single()
-
-      if (profile?.role !== 'startup') {
-        toast.error('This page is for startup accounts only')
-        router.push('/feed')
-        return
-      }
-
-      // Load startup
-      const { data: startupData } = await supabase
-        .from('startups')
-        .select('*')
-        .eq('user_id', user.id)
-        .single()
-      setStartup(startupData)
-
-      if (startupData) {
-        // Load posts
-        const { data: postsData } = await supabase
-          .from('posts')
-          .select(`
-            *,
-            startups (id, name, logo_url, domain, username),
-            likes (user_id),
-            comments (id, content, created_at, user_id)
-          `)
-          .eq('startup_id', startupData.id)
-          .order('created_at', { ascending: false })
-
-        // Fetch profiles for comments
-        const processedPosts = await Promise.all((postsData || []).map(async (post) => {
-          const commentUserIds = [...new Set(post.comments?.map(c => c.user_id) || [])]
-          
-          let profilesMap = {}
-          if (commentUserIds.length > 0) {
-            const { data: profiles } = await supabase
-              .from('profiles')
-              .select('id, full_name, avatar_url, username')
-              .in('id', commentUserIds)
-            
-            profiles?.forEach(p => { profilesMap[p.id] = p })
-          }
-
-          const commentsWithProfiles = post.comments?.map(comment => ({
-            ...comment,
-            profiles: profilesMap[comment.user_id] || null
-          })) || []
-
-          return {
-            ...post,
-            comments: commentsWithProfiles,
-            likes_count: post.likes?.length || 0,
-            user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
-          }
-        }))
-        setPosts(processedPosts)
-
-        // Get followers count
-        const { count } = await supabase
-          .from('follows')
-          .select('id', { count: 'exact' })
-          .eq('startup_id', startupData.id)
-        setFollowersCount(count || 0)
-      }
-
-      setLoading(false)
+  const loadData = useCallback(async () => {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) {
+      router.push('/auth/login')
+      return
     }
-    init()
+    setCurrentUser(user)
+
+    // Check if user is a startup
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('role')
+      .eq('id', user.id)
+      .single()
+
+    if (profile?.role !== 'startup') {
+      toast.error('This page is for startup accounts only')
+      router.push('/feed')
+      return
+    }
+
+    // Load startup
+    const { data: startupData } = await supabase
+      .from('startups')
+      .select('*')
+      .eq('user_id', user.id)
+      .single()
+    setStartup(startupData)
+
+    if (startupData) {
+      // Load posts and followers count in parallel
+      const [postsResult, followersResult] = await Promise.all([
+        supabase.from('posts').select(`
+          *,
+          startups (id, name, logo_url, domain, username),
+          likes (user_id),
+          comments (id, content, created_at, user_id)
+        `).eq('startup_id', startupData.id).order('created_at', { ascending: false }),
+        supabase.from('follows').select('id', { count: 'exact' }).eq('startup_id', startupData.id)
+      ])
+
+      setFollowersCount(followersResult.count || 0)
+
+      // Batch fetch comment author profiles
+      const postsData = postsResult.data || []
+      const allCommentUserIds = new Set()
+      postsData.forEach(post => {
+        post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
+      })
+
+      let profilesMap = {}
+      if (allCommentUserIds.size > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, username')
+          .in('id', Array.from(allCommentUserIds))
+        
+        profiles?.forEach(p => { profilesMap[p.id] = p })
+      }
+
+      // Fetch saved posts status
+      const postIds = postsData.map(p => p.id)
+      let savedPostsSet = new Set()
+      if (postIds.length > 0) {
+        const { data: savedPosts } = await supabase
+          .from('saved_posts')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .in('post_id', postIds)
+        
+        savedPosts?.forEach(sp => savedPostsSet.add(sp.post_id))
+      }
+
+      const processedPosts = postsData.map(post => ({
+        ...post,
+        comments: post.comments?.map(comment => ({
+          ...comment,
+          profiles: profilesMap[comment.user_id] || null
+        })) || [],
+        likes_count: post.likes?.length || 0,
+        user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
+        user_has_saved: savedPostsSet.has(post.id)
+      }))
+      setPosts(processedPosts)
+    }
+
+    setLoading(false)
   }, [router, supabase])
 
+  useEffect(() => {
+    loadData()
+  }, [loadData])
+
   const handlePostCreated = (newPost) => {
-    setPosts(prev => [newPost, ...prev])
+    // Add post to local state immediately for instant feedback
+    setPosts(prev => [{ ...newPost, user_has_saved: false }, ...prev])
   }
 
   const getInitials = (name) => {
