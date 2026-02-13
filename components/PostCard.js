@@ -6,7 +6,8 @@ import { Card, CardContent, CardFooter, CardHeader } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { Heart, MessageCircle, Share2, Send, MoreHorizontal } from 'lucide-react'
+import { Separator } from '@/components/ui/separator'
+import { Heart, MessageCircle, Share2, Send, MoreHorizontal, Bookmark } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
 import { toast } from 'sonner'
@@ -87,103 +88,113 @@ export default function PostCard({ post, currentUserId, onUpdate }) {
   }
 
   return (
-    <Card className="mb-4">
+    <Card className="overflow-hidden">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
-          <Link href={`/startup/${post.startup_id}`} className="flex items-center gap-3 hover:underline">
-            <Avatar className="h-12 w-12">
+          <Link href={`/startup/${post.startup_id}`} className="flex items-center gap-3 group">
+            <Avatar className="h-11 w-11">
               <AvatarImage src={post.startups?.logo_url} />
-              <AvatarFallback>{getInitials(post.startups?.name)}</AvatarFallback>
+              <AvatarFallback className="bg-muted text-sm">{getInitials(post.startups?.name)}</AvatarFallback>
             </Avatar>
             <div>
-              <h3 className="font-semibold text-sm">{post.startups?.name}</h3>
+              <h3 className="text-sm font-semibold group-hover:underline">{post.startups?.name}</h3>
               <p className="text-xs text-muted-foreground">
-                {post.startups?.domain} • {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
+                {post.startups?.domain && <span className="capitalize">{post.startups.domain}</span>}
+                <span className="mx-1">·</span>
+                {formatDistanceToNow(new Date(post.created_at), { addSuffix: true })}
               </p>
             </div>
           </Link>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
+          <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground">
             <MoreHorizontal className="h-4 w-4" />
           </Button>
         </div>
       </CardHeader>
+      
       <CardContent className="pb-3">
-        <p className="text-sm whitespace-pre-wrap">{post.content}</p>
+        <p className="text-sm whitespace-pre-wrap leading-relaxed">{post.content}</p>
         {post.image_url && (
-          <div className="mt-3 rounded-lg overflow-hidden">
+          <div className="mt-3 rounded-lg overflow-hidden border bg-muted">
             <img
               src={post.image_url}
               alt="Post image"
-              className="w-full h-auto max-h-96 object-cover"
+              className="w-full h-auto max-h-[400px] object-cover"
             />
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex flex-col pt-0">
-        {/* Stats */}
-        <div className="flex items-center justify-between w-full text-xs text-muted-foreground pb-2 border-b">
-          <span>{likesCount} likes</span>
-          <span>{comments.length} comments</span>
-        </div>
 
-        {/* Actions */}
-        <div className="flex items-center justify-around w-full pt-2">
+      {/* Stats */}
+      <div className="px-6 py-2 flex items-center justify-between text-xs text-muted-foreground">
+        <span>{likesCount} {likesCount === 1 ? 'like' : 'likes'}</span>
+        <span>{comments.length} {comments.length === 1 ? 'comment' : 'comments'}</span>
+      </div>
+
+      <Separator />
+
+      {/* Actions */}
+      <CardFooter className="p-1">
+        <div className="flex items-center justify-between w-full">
           <Button
             variant="ghost"
             size="sm"
             onClick={handleLike}
-            className={liked ? 'text-red-500' : ''}
+            className={`flex-1 h-10 ${liked ? 'text-foreground' : 'text-muted-foreground'}`}
           >
-            <Heart className={`h-5 w-5 mr-1 ${liked ? 'fill-current' : ''}`} />
+            <Heart className={`h-4 w-4 mr-2 ${liked ? 'fill-current' : ''}`} />
             Like
           </Button>
           <Button
             variant="ghost"
             size="sm"
             onClick={() => setShowComments(!showComments)}
+            className="flex-1 h-10 text-muted-foreground"
           >
-            <MessageCircle className="h-5 w-5 mr-1" />
+            <MessageCircle className="h-4 w-4 mr-2" />
             Comment
           </Button>
-          <Button variant="ghost" size="sm">
-            <Share2 className="h-5 w-5 mr-1" />
-            Share
+          <Button variant="ghost" size="sm" className="flex-1 h-10 text-muted-foreground">
+            <Bookmark className="h-4 w-4 mr-2" />
+            Save
           </Button>
         </div>
+      </CardFooter>
 
-        {/* Comments Section */}
-        {showComments && (
-          <div className="w-full pt-3 border-t mt-2">
+      {/* Comments Section */}
+      {showComments && (
+        <div className="px-4 pb-4 border-t">
+          <div className="pt-3 space-y-3">
             {comments.map((comment) => (
-              <div key={comment.id} className="flex gap-2 mb-3">
+              <div key={comment.id} className="flex gap-2">
                 <Avatar className="h-8 w-8">
                   <AvatarImage src={comment.profiles?.avatar_url} />
-                  <AvatarFallback className="text-xs">
+                  <AvatarFallback className="text-xs bg-muted">
                     {getInitials(comment.profiles?.full_name)}
                   </AvatarFallback>
                 </Avatar>
-                <div className="flex-1 bg-muted rounded-lg p-2">
+                <div className="flex-1 bg-muted rounded-lg px-3 py-2">
                   <p className="text-sm font-medium">{comment.profiles?.full_name}</p>
-                  <p className="text-sm">{comment.content}</p>
+                  <p className="text-sm text-muted-foreground">{comment.content}</p>
                 </div>
               </div>
             ))}
 
             {/* Comment Input */}
-            <form onSubmit={handleComment} className="flex gap-2">
+            <form onSubmit={handleComment} className="flex gap-2 pt-2">
               <Input
                 placeholder="Write a comment..."
                 value={newComment}
                 onChange={(e) => setNewComment(e.target.value)}
                 disabled={loadingComment}
+                className="text-sm"
               />
               <Button type="submit" size="icon" disabled={loadingComment || !newComment.trim()}>
                 <Send className="h-4 w-4" />
               </Button>
             </form>
           </div>
-        )}
-      </CardFooter>
+        </div>
+      )}
     </Card>
   )
 }
