@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, Suspense } from 'react'
+import { useState, useRef, Suspense, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
@@ -11,15 +11,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Loader2, User, Building2, Camera, X } from 'lucide-react'
+import { Loader2, User, Building2, Camera, X, Check, AlertCircle } from 'lucide-react'
 import { toast } from 'sonner'
 import Link from 'next/link'
+import { validateUsername, generateUsername } from '@/lib/utils/username'
 
 function RegisterForm() {
   const searchParams = useSearchParams()
   const [activeTab, setActiveTab] = useState(searchParams.get('type') || 'user')
   const [loading, setLoading] = useState(false)
-  const [uploading, setUploading] = useState(false)
+  const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: null, error: null })
   const fileInputRef = useRef(null)
   const startupLogoRef = useRef(null)
   const router = useRouter()
@@ -29,6 +30,7 @@ function RegisterForm() {
     email: '',
     password: '',
     fullName: '',
+    username: '',
     bio: '',
     skills: '',
     avatarUrl: '',
@@ -39,7 +41,9 @@ function RegisterForm() {
     email: '',
     password: '',
     ownerName: '',
+    ownerUsername: '',
     startupName: '',
+    startupUsername: '',
     domain: '',
     description: '',
     stage: '',
@@ -50,6 +54,55 @@ function RegisterForm() {
     ownerAvatarUrl: '',
     ownerAvatarFile: null,
   })
+
+  // Auto-generate username from name
+  useEffect(() => {
+    if (userForm.fullName && !userForm.username) {
+      const suggested = generateUsername(userForm.fullName)
+      setUserForm(prev => ({ ...prev, username: suggested }))
+    }
+  }, [userForm.fullName])
+
+  useEffect(() => {
+    if (startupForm.ownerName && !startupForm.ownerUsername) {
+      const suggested = generateUsername(startupForm.ownerName)
+      setStartupForm(prev => ({ ...prev, ownerUsername: suggested }))
+    }
+  }, [startupForm.ownerName])
+
+  useEffect(() => {
+    if (startupForm.startupName && !startupForm.startupUsername) {
+      const suggested = generateUsername(startupForm.startupName)
+      setStartupForm(prev => ({ ...prev, startupUsername: suggested }))
+    }
+  }, [startupForm.startupName])
+
+  // Check username availability
+  const checkUsernameAvailability = async (username, type = 'profiles') => {
+    const validation = validateUsername(username)
+    if (!validation.valid) {
+      setUsernameStatus({ checking: false, available: false, error: validation.error })
+      return false
+    }
+
+    setUsernameStatus({ checking: true, available: null, error: null })
+    
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', validation.username)
+      .maybeSingle()
+
+    const { data: startupData } = await supabase
+      .from('startups')
+      .select('username')
+      .eq('username', validation.username)
+      .maybeSingle()
+
+    const exists = profileData || startupData
+    setUsernameStatus({ checking: false, available: !exists, error: exists ? 'Username already taken' : null })
+    return !exists
+  }
 
   const handleUserAvatarSelect = (e) => {
     const file = e.target.files[0]
@@ -96,6 +149,22 @@ function RegisterForm() {
     setLoading(true)
 
     try {
+      // Validate username
+      const validation = validateUsername(userForm.username)
+      if (!validation.valid) {
+        toast.error(validation.error)
+        setLoading(false)
+        return
+      }
+
+      // Check availability
+      const available = await checkUsernameAvailability(userForm.username)
+      if (!available) {
+        toast.error('Username is already taken')
+        setLoading(false)
+        return
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: userForm.email,
         password: userForm.password,
@@ -113,6 +182,7 @@ function RegisterForm() {
         id: authData.user.id,
         email: userForm.email,
         full_name: userForm.fullName,
+        username: validation.username,
         bio: userForm.bio,
         skills: userForm.skills.split(',').map(s => s.trim()).filter(Boolean),
         avatar_url: avatarUrl,
@@ -135,6 +205,21 @@ function RegisterForm() {
     setLoading(true)
 
     try {
+      // Validate usernames
+      const ownerValidation = validateUsername(startupForm.ownerUsername)
+      const startupValidation = validateUsername(startupForm.startupUsername)
+      
+      if (!ownerValidation.valid) {
+        toast.error('Owner username: ' + ownerValidation.error)
+        setLoading(false)
+        return
+      }
+      if (!startupValidation.valid) {
+        toast.error('Startup username: ' + startupValidation.error)
+        setLoading(false)
+        return
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: startupForm.email,
         password: startupForm.password,
@@ -152,6 +237,7 @@ function RegisterForm() {
         id: authData.user.id,
         email: startupForm.email,
         full_name: startupForm.ownerName,
+        username: ownerValidation.username,
         avatar_url: ownerAvatarUrl,
         role: 'startup',
       })
@@ -167,6 +253,7 @@ function RegisterForm() {
       const { error: startupError } = await supabase.from('startups').insert({
         user_id: authData.user.id,
         name: startupForm.startupName,
+        username: startupValidation.username,
         domain: startupForm.domain,
         description: startupForm.description,
         stage: startupForm.stage,
@@ -188,6 +275,28 @@ function RegisterForm() {
   }
 
   const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
+
+  const UsernameInput = ({ value, onChange, onBlur }) => (
+    <div className="relative">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</div>
+      <Input
+        value={value}
+        onChange={(e) => onChange(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+        onBlur={onBlur}
+        className="h-10 bg-secondary border-0 pl-8 pr-8"
+        placeholder="username"
+      />
+      {usernameStatus.checking && (
+        <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+      )}
+      {!usernameStatus.checking && usernameStatus.available === true && (
+        <Check className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-green-500" />
+      )}
+      {!usernameStatus.checking && usernameStatus.available === false && (
+        <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+      )}
+    </div>
+  )
 
   return (
     <div className="min-h-screen bg-background">
@@ -255,6 +364,17 @@ function RegisterForm() {
                       <Input value={userForm.fullName} onChange={(e) => setUserForm({ ...userForm, fullName: e.target.value })} required className="h-11 bg-secondary border-0" />
                     </div>
                     <div className="space-y-2">
+                      <Label className="text-muted-foreground">Username</Label>
+                      <UsernameInput
+                        value={userForm.username}
+                        onChange={(val) => setUserForm({ ...userForm, username: val })}
+                        onBlur={() => userForm.username && checkUsernameAvailability(userForm.username)}
+                      />
+                      {usernameStatus.error && (
+                        <p className="text-xs text-red-500">{usernameStatus.error}</p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
                       <Label className="text-muted-foreground">Bio (optional)</Label>
                       <Textarea value={userForm.bio} onChange={(e) => setUserForm({ ...userForm, bio: e.target.value })} rows={2} className="bg-secondary border-0 resize-none" />
                     </div>
@@ -312,8 +432,32 @@ function RegisterForm() {
                         <Input value={startupForm.ownerName} onChange={(e) => setStartupForm({ ...startupForm, ownerName: e.target.value })} required className="h-10 bg-secondary border-0" />
                       </div>
                       <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Your @username</Label>
+                        <div className="relative">
+                          <div className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</div>
+                          <Input 
+                            value={startupForm.ownerUsername} 
+                            onChange={(e) => setStartupForm({ ...startupForm, ownerUsername: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '') })} 
+                            className="h-10 bg-secondary border-0 pl-6" 
+                          />
+                        </div>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
                         <Label className="text-xs text-muted-foreground">Startup Name</Label>
                         <Input value={startupForm.startupName} onChange={(e) => setStartupForm({ ...startupForm, startupName: e.target.value })} required className="h-10 bg-secondary border-0" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs text-muted-foreground">Startup @username</Label>
+                        <div className="relative">
+                          <div className="absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground text-sm">@</div>
+                          <Input 
+                            value={startupForm.startupUsername} 
+                            onChange={(e) => setStartupForm({ ...startupForm, startupUsername: e.target.value.toLowerCase().replace(/[^a-z0-9]/g, '') })} 
+                            className="h-10 bg-secondary border-0 pl-6" 
+                          />
+                        </div>
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-3">
