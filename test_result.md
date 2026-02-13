@@ -103,36 +103,52 @@
 #====================================================================================================
 
 user_problem_statement: |
-  Build "Startup Connect India (SCI)" - a LinkedIn-style professional networking platform for the Indian startup ecosystem.
-  Features: User and Startup roles, Supabase Auth/Database/Storage, Admin panel, Feed, Messaging, Events, Search.
-  Current focus: Fix messaging functionality, ensure dark theme consistency, complete profile picture uploads.
+  Expanding Startup Connect India (SCI) platform with new features:
+  1. Content Creation - Startups can create posts with text/photos (up to 4 images)
+  2. Engagement Features - Like, Comment, Save, Share posts
+  3. Saved Items section
+  4. Unique @username system with /u/username profile URLs
+  5. Performance & UX improvements
+  6. Messaging with message requests/pending state and unread indicators
 
 backend:
-  - task: "Supabase Integration - Auth"
+  - task: "Post Creation with Multi-Image Support"
     implemented: true
-    working: true
-    file: "lib/supabase/client.js"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Supabase auth integration working, login and registration functional"
-
-  - task: "Profile Management"
-    implemented: true
-    working: true
-    file: "app/auth/register/page.js"
+    working: "NA"
+    file: "components/CreatePostDialog.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: true
     status_history:
-      - working: true
+      - working: "NA"
         agent: "main"
-        comment: "Profile picture upload implemented during registration for both users and startups"
+        comment: "Created CreatePostDialog component for startups to create posts with up to 4 images"
 
-  - task: "Messaging System"
+  - task: "Saved Posts System"
+    implemented: true
+    working: "NA"
+    file: "app/saved/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created saved_posts table, save/unsave functionality in PostCard, and Saved Items page"
+
+  - task: "Username System"
+    implemented: true
+    working: "NA"
+    file: "lib/utils/username.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added username field to profiles/startups tables, validation utilities, username in registration"
+
+  - task: "Messaging Enhancements"
     implemented: true
     working: "NA"
     file: "app/messages/page.js"
@@ -142,84 +158,110 @@ backend:
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Fixed messaging queries - removed complex join syntax that was causing issues. Now uses separate profile lookups for reliability."
-
-  - task: "Admin Panel - Startup Approvals"
-    implemented: true
-    working: true
-    file: "app/admin/page.js"
-    stuck_count: 0
-    priority: "medium"
-    needs_retesting: false
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "Admin panel working, can approve/reject startups and create events"
+        comment: "Added message requests tab, unread counts, read receipts, pending conversation state"
 
 frontend:
-  - task: "Dark Theme Consistency"
-    implemented: true
-    working: true
-    file: "app/globals.css"
-    stuck_count: 0
-    priority: "high"
-    needs_retesting: true
-    status_history:
-      - working: true
-        agent: "main"
-        comment: "All pages use bg-background and bg-card classes from dark theme CSS variables"
-
-  - task: "Profile Page Messaging"
+  - task: "PostCard with Save/Share/Comment Delete"
     implemented: true
     working: "NA"
-    file: "app/profile/[id]/page.js"
+    file: "components/PostCard.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Added startConversation function to profile page for messaging other users"
+        comment: "Updated PostCard with Save button, ShareDialog, comment delete, multi-image grid display"
 
-  - task: "Startup Detail Page Messaging"
+  - task: "Share Dialog"
     implemented: true
     working: "NA"
-    file: "app/startup/[id]/page.js"
+    file: "components/ShareDialog.js"
     stuck_count: 0
     priority: "high"
     needs_retesting: true
     status_history:
       - working: "NA"
         agent: "main"
-        comment: "Fixed startConversation function - now uses two separate queries instead of complex OR filter"
+        comment: "Created ShareDialog with copy link, external sharing (WhatsApp, X, LinkedIn, Telegram), send to DM"
+
+  - task: "Navbar with Unread Badges"
+    implemented: true
+    working: "NA"
+    file: "components/Navbar.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added unread message count badges, Create Post button for startups, link prefetching"
+
+  - task: "Username Profile Page"
+    implemented: true
+    working: "NA"
+    file: "app/u/[username]/page.js"
+    stuck_count: 0
+    priority: "high"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Created profile page accessible via /u/username URL"
+
+  - task: "Settings Page - Username"
+    implemented: true
+    working: "NA"
+    file: "app/settings/page.js"
+    stuck_count: 0
+    priority: "medium"
+    needs_retesting: true
+    status_history:
+      - working: "NA"
+        agent: "main"
+        comment: "Added username section to settings page with availability check"
 
 metadata:
   created_by: "main_agent"
   version: "1.0"
-  test_sequence: 1
+  test_sequence: 2
   run_ui: false
 
 test_plan:
   current_focus:
-    - "Messaging System"
-    - "Profile Management"
+    - "Post Creation with Multi-Image Support"
+    - "Saved Posts System"
+    - "Messaging Enhancements"
   stuck_tasks: []
-  test_all: false
+  test_all: true
   test_priority: "high_first"
 
 agent_communication:
   - agent: "main"
     message: |
-      Completed implementation of:
-      1. Profile picture upload during registration (Phase 1) - already implemented, uses Supabase Storage
-      2. Dark theme consistency (Phase 2) - all pages use proper CSS variables
-      3. Messaging functionality fixes (Phase 3):
-         - Fixed conversation lookup queries in startup detail and profile pages
-         - Fixed message loading in messages page
-         - Removed complex foreign key join syntax that was causing Supabase errors
+      Implemented all requested features:
       
-      Testing needed for:
-      - Verify messaging works end-to-end (create conversation, send message, view messages)
-      - Verify profile pictures upload correctly during registration
+      1. **Content Creation**: CreatePostDialog.js - startups can create posts with text and up to 4 images in LinkedIn-style grid
+      2. **Engagement Features**: 
+         - Like/Comment already working
+         - Save posts (saved_posts table + UI)
+         - Share posts (ShareDialog with copy link, external apps, send in DM)
+         - Comments can be deleted by owner
+      3. **Saved Items**: /saved page to view all saved posts
+      4. **Username System**:
+         - Username field added to registration
+         - Settings page to change username
+         - Profile accessible at /u/username
+         - @mentions link to user profiles
+      5. **Messaging Enhancements**:
+         - Message requests tab (pending conversations)
+         - Unread count badges on Navbar
+         - Read receipts (checkmarks)
+         - Auto-accept when responding
       
-      Note: Preview URL showing "Preview Unavailable" but local server is working correctly on port 3000.
+      Database schema changes needed (SCHEMA_UPDATE.sql):
+      - username column in profiles and startups tables
+      - saved_posts table
+      - is_accepted, is_read columns in conversations/messages
+      
+      Testing needed for all features once preview is available.
