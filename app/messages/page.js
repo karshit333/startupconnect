@@ -9,19 +9,24 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Send, MessageSquare } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Send, MessageSquare, Inbox, Clock, Check, CheckCheck } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
+import { toast } from 'sonner'
 
 function MessagesContent() {
   const searchParams = useSearchParams()
   const initialChatId = searchParams.get('chat')
   const [conversations, setConversations] = useState([])
+  const [pendingConversations, setPendingConversations] = useState([])
   const [selectedConvo, setSelectedConvo] = useState(null)
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
   const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sendingMessage, setSendingMessage] = useState(false)
+  const [activeTab, setActiveTab] = useState('messages')
   const messagesEndRef = useRef(null)
   const router = useRouter()
   const supabase = createClient()
@@ -35,7 +40,7 @@ function MessagesContent() {
       }
       setCurrentUser(user)
 
-      // Load conversations - use simpler query first
+      // Load all conversations
       const { data: convosRaw, error: convosError } = await supabase
         .from('conversations')
         .select('*')
@@ -46,28 +51,62 @@ function MessagesContent() {
         console.error('Error loading conversations:', convosError)
       }
 
-      // Fetch profile data separately for each conversation
+      // Fetch profile data and process conversations
       const processedConvos = await Promise.all((convosRaw || []).map(async (convo) => {
-        const otherParticipantId = convo.participant_1 === user.id 
-          ? convo.participant_2 
-          : convo.participant_1
+        const isParticipant1 = convo.participant_1 === user.id
+        const otherParticipantId = isParticipant1 ? convo.participant_2 : convo.participant_1
         
         const { data: otherProfile } = await supabase
           .from('profiles')
-          .select('id, full_name, avatar_url')
+          .select('id, full_name, avatar_url, username')
           .eq('id', otherParticipantId)
           .single()
 
-        return { ...convo, otherParticipant: otherProfile }
+        // Get last message
+        const { data: lastMsg } = await supabase
+          .from('messages')
+          .select('content, sender_id, created_at, is_read')
+          .eq('conversation_id', convo.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        // Count unread messages for current user
+        const { count: unreadCount } = await supabase
+          .from('messages')
+          .select('id', { count: 'exact' })
+          .eq('conversation_id', convo.id)
+          .neq('sender_id', user.id)
+          .eq('is_read', false)
+
+        // Determine if this is a pending conversation (initiated by other user, not yet responded to)
+        const isPending = !convo.is_accepted && convo.participant_1 !== user.id
+
+        return { 
+          ...convo, 
+          otherParticipant: otherProfile,
+          lastMessage: lastMsg,
+          unreadCount: unreadCount || 0,
+          isPending
+        }
       }))
 
-      setConversations(processedConvos)
+      // Split into accepted and pending
+      const accepted = processedConvos.filter(c => c.is_accepted || c.participant_1 === currentUser?.id || !c.isPending)
+      const pending = processedConvos.filter(c => c.isPending)
 
+      setConversations(accepted)
+      setPendingConversations(pending)
+
+      // Handle initial chat selection
       if (initialChatId) {
         const initialConvo = processedConvos.find(c => c.id === initialChatId)
         if (initialConvo) {
           setSelectedConvo(initialConvo)
           loadMessages(initialChatId)
+          if (initialConvo.isPending) {
+            setActiveTab('requests')
+          }
         }
       }
 
@@ -89,11 +128,18 @@ function MessagesContent() {
       return
     }
 
-    // Fetch sender profiles separately
+    // Mark messages as read
+    await supabase
+      .from('messages')
+      .update({ is_read: true })
+      .eq('conversation_id', convoId)
+      .neq('sender_id', currentUser.id)
+
+    // Fetch sender profiles
     const messagesWithSender = await Promise.all((messagesRaw || []).map(async (msg) => {
       const { data: senderProfile } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url')
+        .select('id, full_name, avatar_url, username')
         .eq('id', msg.sender_id)
         .single()
       
@@ -102,6 +148,11 @@ function MessagesContent() {
 
     setMessages(messagesWithSender)
     scrollToBottom()
+
+    // Update unread count in UI
+    setConversations(prev => prev.map(c => 
+      c.id === convoId ? { ...c, unreadCount: 0 } : c
+    ))
   }
 
   const scrollToBottom = () => {
@@ -136,29 +187,44 @@ function MessagesContent() {
       // Get sender profile
       const { data: senderProfile } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url')
+        .select('id, full_name, avatar_url, username')
         .eq('id', currentUser.id)
         .single()
 
       const messageWithSender = { ...msgData, sender: senderProfile }
-
       setMessages(prev => [...prev, messageWithSender])
       setNewMessage('')
 
+      // Update conversation - mark as accepted if responding to pending
       await supabase
         .from('conversations')
-        .update({ updated_at: new Date().toISOString() })
+        .update({ 
+          updated_at: new Date().toISOString(),
+          is_accepted: true,
+          last_message_preview: newMessage.trim().slice(0, 50)
+        })
         .eq('id', selectedConvo.id)
+
+      // Move from pending to accepted if necessary
+      if (selectedConvo.isPending) {
+        setPendingConversations(prev => prev.filter(c => c.id !== selectedConvo.id))
+        setConversations(prev => [{ ...selectedConvo, isPending: false, is_accepted: true }, ...prev])
+        setSelectedConvo({ ...selectedConvo, isPending: false, is_accepted: true })
+      }
 
       scrollToBottom()
     } catch (error) {
       console.error('Failed to send message:', error)
+      toast.error('Failed to send message')
     } finally {
       setSendingMessage(false)
     }
   }
 
   const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
+  
+  const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
+  const totalPending = pendingConversations.length
 
   if (loading) {
     return (
@@ -171,6 +237,56 @@ function MessagesContent() {
     )
   }
 
+  const ConversationItem = ({ convo, isSelected }) => (
+    <div
+      onClick={() => selectConversation(convo)}
+      className={`flex items-center gap-3 p-4 cursor-pointer hover:bg-white/5 transition-colors border-b border-border ${
+        isSelected ? 'bg-white/10' : ''
+      }`}
+    >
+      <div className="relative">
+        <Avatar>
+          <AvatarImage src={convo.otherParticipant?.avatar_url} />
+          <AvatarFallback className="bg-white/10">
+            {getInitials(convo.otherParticipant?.full_name)}
+          </AvatarFallback>
+        </Avatar>
+        {convo.unreadCount > 0 && (
+          <div className="absolute -top-1 -right-1 w-5 h-5 bg-white text-background text-xs font-bold rounded-full flex items-center justify-center">
+            {convo.unreadCount}
+          </div>
+        )}
+      </div>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center justify-between">
+          <p className={`font-medium truncate ${convo.unreadCount > 0 ? 'text-white' : ''}`}>
+            {convo.otherParticipant?.full_name || 'Unknown'}
+          </p>
+          <span className="text-xs text-muted-foreground">
+            {formatDistanceToNow(new Date(convo.updated_at), { addSuffix: false })}
+          </span>
+        </div>
+        {convo.otherParticipant?.username && (
+          <p className="text-xs text-muted-foreground">@{convo.otherParticipant.username}</p>
+        )}
+        {convo.lastMessage && (
+          <p className={`text-sm truncate mt-0.5 ${convo.unreadCount > 0 ? 'text-white/80' : 'text-muted-foreground'}`}>
+            {convo.lastMessage.sender_id === currentUser?.id && (
+              <span className="inline-flex items-center mr-1">
+                {convo.lastMessage.is_read ? (
+                  <CheckCheck className="h-3 w-3 text-white" />
+                ) : (
+                  <Check className="h-3 w-3" />
+                )}
+              </span>
+            )}
+            {convo.lastMessage.content}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -179,43 +295,59 @@ function MessagesContent() {
           <div className="flex h-full">
             {/* Conversations List */}
             <div className="w-80 border-r border-border flex flex-col">
-              <CardHeader className="pb-3 border-b border-border">
-                <CardTitle className="text-base flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5" />
-                  Messages
-                </CardTitle>
+              <CardHeader className="pb-0 border-b border-border">
+                <Tabs value={activeTab} onValueChange={setActiveTab}>
+                  <TabsList className="w-full bg-secondary">
+                    <TabsTrigger value="messages" className="flex-1 gap-1 data-[state=active]:bg-white data-[state=active]:text-background">
+                      <Inbox className="h-4 w-4" />
+                      Messages
+                      {totalUnread > 0 && (
+                        <Badge className="ml-1 bg-white text-background h-5 px-1.5">{totalUnread}</Badge>
+                      )}
+                    </TabsTrigger>
+                    <TabsTrigger value="requests" className="flex-1 gap-1 data-[state=active]:bg-white data-[state=active]:text-background">
+                      <Clock className="h-4 w-4" />
+                      Requests
+                      {totalPending > 0 && (
+                        <Badge className="ml-1 bg-yellow-500 text-background h-5 px-1.5">{totalPending}</Badge>
+                      )}
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
               </CardHeader>
+              
               <ScrollArea className="flex-1">
-                {conversations.length === 0 ? (
-                  <div className="p-4 text-center text-muted-foreground">
-                    <p>No conversations yet</p>
-                    <p className="text-sm mt-1">Start messaging startups!</p>
-                  </div>
-                ) : (
-                  conversations.map((convo) => (
-                    <div
-                      key={convo.id}
-                      onClick={() => selectConversation(convo)}
-                      className={`flex items-center gap-3 p-4 cursor-pointer hover:bg-white/5 transition-colors border-b border-border ${
-                        selectedConvo?.id === convo.id ? 'bg-white/10' : ''
-                      }`}
-                    >
-                      <Avatar>
-                        <AvatarImage src={convo.otherParticipant?.avatar_url} />
-                        <AvatarFallback className="bg-white/10">
-                          {getInitials(convo.otherParticipant?.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">
-                          {convo.otherParticipant?.full_name || 'Unknown'}
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          {formatDistanceToNow(new Date(convo.updated_at), { addSuffix: true })}
-                        </p>
-                      </div>
+                {activeTab === 'messages' ? (
+                  conversations.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">
+                      <MessageSquare className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No conversations yet</p>
+                      <p className="text-sm mt-1">Start messaging startups!</p>
                     </div>
-                  ))
+                  ) : (
+                    conversations.map((convo) => (
+                      <ConversationItem 
+                        key={convo.id} 
+                        convo={convo} 
+                        isSelected={selectedConvo?.id === convo.id}
+                      />
+                    ))
+                  )
+                ) : (
+                  pendingConversations.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">
+                      <Clock className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>No message requests</p>
+                    </div>
+                  ) : (
+                    pendingConversations.map((convo) => (
+                      <ConversationItem 
+                        key={convo.id} 
+                        convo={convo} 
+                        isSelected={selectedConvo?.id === convo.id}
+                      />
+                    ))
+                  )
                 )}
               </ScrollArea>
             </div>
@@ -231,8 +363,26 @@ function MessagesContent() {
                         {getInitials(selectedConvo.otherParticipant?.full_name)}
                       </AvatarFallback>
                     </Avatar>
-                    <p className="font-medium">{selectedConvo.otherParticipant?.full_name}</p>
+                    <div>
+                      <p className="font-medium">{selectedConvo.otherParticipant?.full_name}</p>
+                      {selectedConvo.otherParticipant?.username && (
+                        <p className="text-xs text-muted-foreground">@{selectedConvo.otherParticipant.username}</p>
+                      )}
+                    </div>
+                    {selectedConvo.isPending && (
+                      <Badge variant="outline" className="ml-auto text-yellow-500 border-yellow-500">
+                        Message Request
+                      </Badge>
+                    )}
                   </div>
+
+                  {selectedConvo.isPending && messages.length > 0 && (
+                    <div className="px-4 py-2 bg-yellow-500/10 border-b border-yellow-500/20">
+                      <p className="text-sm text-yellow-500">
+                        This is a message request. Reply to accept the conversation.
+                      </p>
+                    </div>
+                  )}
 
                   <ScrollArea className="flex-1 p-4">
                     <div className="space-y-4">
@@ -257,9 +407,18 @@ function MessagesContent() {
                             }`}
                           >
                             <p className="text-sm">{msg.content}</p>
-                            <p className={`text-xs mt-1 ${msg.sender_id === currentUser.id ? 'text-background/60' : 'text-muted-foreground'}`}>
-                              {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
-                            </p>
+                            <div className={`flex items-center gap-1 mt-1 ${msg.sender_id === currentUser.id ? 'text-background/60' : 'text-muted-foreground'}`}>
+                              <p className="text-xs">
+                                {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
+                              </p>
+                              {msg.sender_id === currentUser.id && (
+                                msg.is_read ? (
+                                  <CheckCheck className="h-3 w-3" />
+                                ) : (
+                                  <Check className="h-3 w-3" />
+                                )
+                              )}
+                            </div>
                           </div>
                         </div>
                       ))}
@@ -269,7 +428,7 @@ function MessagesContent() {
 
                   <form onSubmit={sendMessage} className="p-4 border-t border-border flex gap-2">
                     <Input
-                      placeholder="Type a message..."
+                      placeholder={selectedConvo.isPending ? "Reply to accept..." : "Type a message..."}
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       disabled={sendingMessage}
