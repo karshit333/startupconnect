@@ -92,11 +92,32 @@ export default function FeedPage() {
       // Create saved posts lookup
       const savedPostsSet = new Set(savedResult.data?.map(sp => sp.post_id) || [])
 
-      // Process posts with minimal transformation
+      // Process posts
       const postsData = postsResult.data || []
+      
+      // Collect all comment user IDs for batch fetching profiles
+      const allCommentUserIds = new Set()
+      postsData.forEach(post => {
+        post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
+      })
+
+      // Batch fetch comment author profiles
+      let profilesMap = {}
+      if (allCommentUserIds.size > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, username')
+          .in('id', Array.from(allCommentUserIds))
+        profiles?.forEach(p => { profilesMap[p.id] = p })
+      }
+
+      // Process posts with all data
       const processedPosts = postsData.map(post => ({
         ...post,
-        comments: post.comments || [],
+        comments: post.comments?.map(comment => ({
+          ...comment,
+          profiles: profilesMap[comment.user_id] || null
+        })) || [],
         likes_count: post.likes?.length || 0,
         user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
         user_has_saved: savedPostsSet.has(post.id)
