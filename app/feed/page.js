@@ -100,7 +100,6 @@ export default function FeedPage() {
             </div>
             <div className="hidden lg:block space-y-4">
               <CardSkeleton />
-              <CardSkeleton />
             </div>
           </div>
         </div>
@@ -113,34 +112,24 @@ export default function FeedPage() {
       <Navbar />
       <div className="container mx-auto px-4 py-6">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-6 max-w-[1128px] mx-auto">
-          {/* Left Sidebar - Profile Card */}
+          {/* Left Sidebar */}
           <div className="hidden lg:block">
-            <Card className="overflow-hidden">
-              <div className="h-14 bg-gradient-to-r from-primary/30 to-primary/10" />
-              <div className="-mt-7 px-4 pb-4">
+            <Card className="bg-card border-border overflow-hidden">
+              <div className="h-14 bg-gradient-to-r from-white/10 to-white/5" />
+              <div className="-mt-6 px-4 pb-4">
                 <Link href={`/profile/${user?.id}`}>
-                  <Avatar className="h-16 w-16 border-2 border-white ring-2 ring-background">
+                  <Avatar className="h-14 w-14 border-2 border-card">
                     <AvatarImage src={profile?.avatar_url} />
-                    <AvatarFallback className="text-lg bg-primary/10 text-primary">{getInitials(profile?.full_name)}</AvatarFallback>
+                    <AvatarFallback className="bg-white/10">{getInitials(profile?.full_name)}</AvatarFallback>
                   </Avatar>
                 </Link>
                 <Link href={`/profile/${user?.id}`} className="block mt-2">
                   <h3 className="font-semibold hover:underline">{profile?.full_name}</h3>
                 </Link>
-                {profile?.bio ? (
-                  <p className="text-xs text-muted-foreground line-clamp-2 mt-1">{profile?.bio}</p>
-                ) : (
-                  <p className="text-xs text-muted-foreground capitalize">{profile?.role}</p>
-                )}
+                <p className="text-xs text-muted-foreground capitalize">{profile?.role}</p>
               </div>
-              <div className="border-t px-4 py-3">
-                <Link href={`/profile/${user?.id}`} className="text-xs text-muted-foreground hover:text-primary flex items-center justify-between">
-                  <span>Profile viewers</span>
-                  <span className="text-primary font-semibold">12</span>
-                </Link>
-              </div>
-              <div className="border-t px-4 py-3">
-                <Link href="/saved" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-primary">
+              <div className="border-t border-border px-4 py-3">
+                <Link href="/saved" className="flex items-center gap-2 text-xs text-muted-foreground hover:text-white">
                   <Bookmark className="h-4 w-4" />
                   Saved items
                 </Link>
@@ -151,17 +140,17 @@ export default function FeedPage() {
           {/* Main Feed */}
           <div className="lg:col-span-2">
             {posts.length === 0 ? (
-              <Card>
+              <Card className="bg-card border-border">
                 <CardContent className="py-16 text-center">
-                  <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-                    <Users className="h-8 w-8 text-primary" />
+                  <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center mx-auto mb-4">
+                    <Users className="h-8 w-8 text-muted-foreground" />
                   </div>
                   <h3 className="font-semibold text-lg mb-2">No posts yet</h3>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Follow startups to see their updates in your feed
+                    Follow startups to see their updates
                   </p>
                   <Link href="/search">
-                    <Button className="bg-primary hover:bg-primary/90">
+                    <Button className="bg-white text-background hover:bg-white/90">
                       Discover Startups
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Button>
@@ -169,7 +158,7 @@ export default function FeedPage() {
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-2">
+              <div className="space-y-4">
                 {posts.map((post) => (
                   <PostCard
                     key={post.id}
@@ -182,12 +171,12 @@ export default function FeedPage() {
           </div>
 
           {/* Right Sidebar */}
-          <div className="hidden lg:block space-y-2">
-            {/* Trending Startups */}
-            <Card>
+          <div className="hidden lg:block space-y-4">
+            {/* Trending */}
+            <Card className="bg-card border-border">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold flex items-center justify-between">
-                  Trending Startups
+                <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                  Trending
                   <TrendingUp className="h-4 w-4 text-muted-foreground" />
                 </CardTitle>
               </CardHeader>
@@ -199,62 +188,59 @@ export default function FeedPage() {
                     <Link
                       key={startup.id}
                       href={`/startup/${startup.id}`}
-                      className="flex items-center gap-3 p-2 -mx-2 rounded hover:bg-secondary transition-colors"
+                      className="flex items-center gap-3 p-2 -mx-2 rounded hover:bg-white/5 transition-colors"
                     >
-                      <Avatar className="h-10 w-10">
+                      <Avatar className="h-9 w-9">
                         <AvatarImage src={startup.logo_url} />
-                        <AvatarFallback className="text-xs bg-primary/10 text-primary">
+                        <AvatarFallback className="text-xs bg-white/10">
                           {startup.name?.slice(0, 2).toUpperCase()}
                         </AvatarFallback>
                       </Avatar>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-semibold truncate">{startup.name}</p>
+                        <p className="text-sm font-medium truncate">{startup.name}</p>
                         <p className="text-xs text-muted-foreground capitalize">{startup.domain}</p>
                       </div>
                     </Link>
                   ))
                 )}
               </CardContent>
-              <div className="border-t p-2">
-                <Link href="/search" className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1 py-1">
-                  View all startups
+              <div className="border-t border-border p-2">
+                <Link href="/search" className="text-xs text-muted-foreground hover:text-white flex items-center justify-center gap-1 py-1">
+                  View all
                   <ArrowRight className="h-3 w-3" />
                 </Link>
               </div>
             </Card>
 
-            {/* Upcoming Events */}
-            <Card>
+            {/* Events */}
+            <Card className="bg-card border-border">
               <CardHeader className="pb-2">
-                <CardTitle className="text-base font-semibold flex items-center justify-between">
-                  Upcoming Events
+                <CardTitle className="text-sm font-semibold flex items-center justify-between">
+                  Events
                   <Calendar className="h-4 w-4 text-muted-foreground" />
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1 pb-2">
                 {upcomingEvents.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-2">No upcoming events</p>
+                  <p className="text-sm text-muted-foreground py-2">No events</p>
                 ) : (
                   upcomingEvents.map((event) => (
                     <Link
                       key={event.id}
                       href="/events"
-                      className="block p-2 -mx-2 rounded hover:bg-secondary transition-colors"
+                      className="block p-2 -mx-2 rounded hover:bg-white/5 transition-colors"
                     >
-                      <p className="text-sm font-semibold truncate">{event.title}</p>
+                      <p className="text-sm font-medium truncate">{event.title}</p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(event.event_date).toLocaleDateString('en-IN', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
+                        {new Date(event.event_date).toLocaleDateString('en-IN', { month: 'short', day: 'numeric' })}
                         {event.city && ` · ${event.city}`}
                       </p>
                     </Link>
                   ))
                 )}
               </CardContent>
-              <div className="border-t p-2">
-                <Link href="/events" className="text-sm text-muted-foreground hover:text-primary flex items-center justify-center gap-1 py-1">
+              <div className="border-t border-border p-2">
+                <Link href="/events" className="text-xs text-muted-foreground hover:text-white flex items-center justify-center gap-1 py-1">
                   View all events
                   <ArrowRight className="h-3 w-3" />
                 </Link>
