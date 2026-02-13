@@ -1,8 +1,8 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { useUser } from '@/lib/context/UserContext'
 import Navbar from '@/components/Navbar'
 import PostCard from '@/components/PostCard'
 import FeedSkeleton, { CardSkeleton } from '@/components/FeedSkeleton'
@@ -13,92 +13,101 @@ import { TrendingUp, Calendar, Users, ArrowRight, Bookmark } from 'lucide-react'
 import Link from 'next/link'
 
 export default function FeedPage() {
-  const [user, setUser] = useState(null)
-  const [profile, setProfile] = useState(null)
+  const { user, profile, supabase, isInitialized } = useUser()
   const [posts, setPosts] = useState([])
   const [trendingStartups, setTrendingStartups] = useState([])
   const [upcomingEvents, setUpcomingEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const router = useRouter()
-  const supabase = createClient()
 
-  // Optimized data loading - fetch all needed data in parallel where possible
-  const loadData = useCallback(async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) {
+  // Redirect if not logged in
+  useEffect(() => {
+    if (isInitialized && !user) {
       router.push('/auth/login')
-      return
     }
-    setUser(user)
+  }, [isInitialized, user, router])
 
-    // Fetch profile, posts, startups, and events in parallel
-    const [profileResult, postsResult, startupsResult, eventsResult] = await Promise.all([
-      supabase.from('profiles').select('*').eq('id', user.id).single(),
-      supabase.from('posts').select(`
-        *,
-        startups (id, name, logo_url, domain, username),
-        likes (user_id),
-        comments (id, content, created_at, user_id)
-      `).order('created_at', { ascending: false }).limit(20),
-      supabase.from('startups').select('*').eq('is_approved', true).limit(5),
-      supabase.from('events').select('*').gte('event_date', new Date().toISOString()).order('event_date', { ascending: true }).limit(3)
-    ])
+  // Load feed data
+  const loadFeedData = useCallback(async () => {
+    if (!user || !supabase) return
 
-    setProfile(profileResult.data)
-    setTrendingStartups(startupsResult.data || [])
-    setUpcomingEvents(eventsResult.data || [])
+    try {
+      // Fetch posts, startups, and events in parallel
+      const [postsResult, startupsResult, eventsResult] = await Promise.all([
+        supabase.from('posts').select(`
+          *,
+          startups (id, name, logo_url, domain, username),
+          likes (user_id),
+          comments (id, content, created_at, user_id)
+        `).order('created_at', { ascending: false }).limit(20),
+        supabase.from('startups').select('*').eq('is_approved', true).limit(5),
+        supabase.from('events').select('*').gte('event_date', new Date().toISOString()).order('event_date', { ascending: true }).limit(3)
+      ])
 
-    // Process posts - collect all comment user IDs first to batch fetch
-    const postsData = postsResult.data || []
-    const allCommentUserIds = new Set()
-    postsData.forEach(post => {
-      post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
-    })
+      setTrendingStartups(startupsResult.data || [])
+      setUpcomingEvents(eventsResult.data || [])
 
-    // Batch fetch all comment author profiles in one query
-    let profilesMap = {}
-    if (allCommentUserIds.size > 0) {
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, username')
-        .in('id', Array.from(allCommentUserIds))
-      
-      profiles?.forEach(p => { profilesMap[p.id] = p })
+      // Process posts - collect all comment user IDs first to batch fetch
+      const postsData = postsResult.data || []
+      const allCommentUserIds = new Set()
+      postsData.forEach(post => {
+        post.comments?.forEach(c => allCommentUserIds.add(c.user_id))
+      })
+
+      // Batch fetch all comment author profiles in one query
+      let profilesMap = {}
+      if (allCommentUserIds.size > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url, username')
+          .in('id', Array.from(allCommentUserIds))
+        
+        profiles?.forEach(p => { profilesMap[p.id] = p })
+      }
+
+      // Fetch saved posts status for current user
+      const postIds = postsData.map(p => p.id)
+      let savedPostsSet = new Set()
+      if (postIds.length > 0) {
+        const { data: savedPosts } = await supabase
+          .from('saved_posts')
+          .select('post_id')
+          .eq('user_id', user.id)
+          .in('post_id', postIds)
+        
+        savedPosts?.forEach(sp => savedPostsSet.add(sp.post_id))
+      }
+
+      // Process posts with all the data
+      const processedPosts = postsData.map(post => ({
+        ...post,
+        comments: post.comments?.map(comment => ({
+          ...comment,
+          profiles: profilesMap[comment.user_id] || null
+        })) || [],
+        likes_count: post.likes?.length || 0,
+        user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
+        user_has_saved: savedPostsSet.has(post.id)
+      }))
+
+      setPosts(processedPosts)
+    } catch (error) {
+      console.error('Error loading feed:', error)
+    } finally {
+      setLoading(false)
     }
-
-    // Fetch saved posts status for current user
-    const postIds = postsData.map(p => p.id)
-    let savedPostsSet = new Set()
-    if (postIds.length > 0) {
-      const { data: savedPosts } = await supabase
-        .from('saved_posts')
-        .select('post_id')
-        .eq('user_id', user.id)
-        .in('post_id', postIds)
-      
-      savedPosts?.forEach(sp => savedPostsSet.add(sp.post_id))
-    }
-
-    // Process posts with all the data
-    const processedPosts = postsData.map(post => ({
-      ...post,
-      comments: post.comments?.map(comment => ({
-        ...comment,
-        profiles: profilesMap[comment.user_id] || null
-      })) || [],
-      likes_count: post.likes?.length || 0,
-      user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
-      user_has_saved: savedPostsSet.has(post.id)
-    }))
-
-    setPosts(processedPosts)
-    setLoading(false)
-  }, [router, supabase])
+  }, [user, supabase])
 
   useEffect(() => {
-    loadData()
+    if (isInitialized && user) {
+      loadFeedData()
+    }
+  }, [isInitialized, user, loadFeedData])
 
-    // Set up real-time subscription for new posts
+  // Set up real-time subscription for new posts
+  useEffect(() => {
+    if (!supabase || !user) return
+
     const channel = supabase
       .channel('feed-posts')
       .on('postgres_changes', {
@@ -106,21 +115,21 @@ export default function FeedPage() {
         schema: 'public',
         table: 'posts'
       }, () => {
-        // Reload feed when new post is created
-        loadData()
+        loadFeedData()
       })
       .subscribe()
 
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [loadData])
+  }, [supabase, user, loadFeedData])
 
   const getInitials = (name) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
   }
 
-  if (loading) {
+  // Show loading while checking auth
+  if (!isInitialized || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
