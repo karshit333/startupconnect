@@ -1,16 +1,16 @@
 'use client'
 
 import { useState, useEffect, useRef, Suspense, useCallback } from 'react'
-import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { useUser } from '@/lib/context/UserContext'
 import Navbar from '@/components/Navbar'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardHeader } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Badge } from '@/components/ui/badge'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Send, MessageSquare, Inbox, Clock, Check, CheckCheck } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
@@ -18,21 +18,29 @@ import { toast } from 'sonner'
 function MessagesContent() {
   const searchParams = useSearchParams()
   const initialChatId = searchParams.get('chat')
+  const { user, supabase, isInitialized, markMessagesAsRead } = useUser()
+  
   const [conversations, setConversations] = useState([])
   const [pendingConversations, setPendingConversations] = useState([])
   const [selectedConvo, setSelectedConvo] = useState(null)
   const [messages, setMessages] = useState([])
   const [newMessage, setNewMessage] = useState('')
-  const [currentUser, setCurrentUser] = useState(null)
   const [loading, setLoading] = useState(true)
   const [sendingMessage, setSendingMessage] = useState(false)
   const [activeTab, setActiveTab] = useState('messages')
   const messagesEndRef = useRef(null)
   const router = useRouter()
-  const supabase = createClient()
 
-  const loadConversations = useCallback(async (user) => {
-    // Load all conversations
+  // Redirect if not logged in
+  useEffect(() => {
+    if (isInitialized && !user) {
+      router.push('/auth/login')
+    }
+  }, [isInitialized, user, router])
+
+  const loadConversations = useCallback(async () => {
+    if (!user || !supabase) return []
+
     const { data: convosRaw } = await supabase
       .from('conversations')
       .select('*')
@@ -108,25 +116,21 @@ function MessagesContent() {
     setPendingConversations(pending)
 
     return processedConvos
-  }, [supabase])
+  }, [user, supabase])
 
+  // Initial load
   useEffect(() => {
     async function init() {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user) {
-        router.push('/auth/login')
-        return
-      }
-      setCurrentUser(user)
+      if (!isInitialized || !user) return
 
-      const processedConvos = await loadConversations(user)
+      const processedConvos = await loadConversations()
 
       // Handle initial chat selection
       if (initialChatId && processedConvos.length > 0) {
         const initialConvo = processedConvos.find(c => c.id === initialChatId)
         if (initialConvo) {
           setSelectedConvo(initialConvo)
-          loadMessages(initialChatId, user)
+          await loadMessages(initialChatId)
           if (initialConvo.isPending) {
             setActiveTab('requests')
           }
@@ -136,10 +140,10 @@ function MessagesContent() {
       setLoading(false)
     }
     init()
-  }, [initialChatId, loadConversations, router, supabase])
+  }, [isInitialized, user, initialChatId, loadConversations])
 
-  const loadMessages = async (convoId, user = currentUser) => {
-    if (!user) return
+  const loadMessages = async (convoId) => {
+    if (!user || !supabase) return
     
     const { data: messagesRaw } = await supabase
       .from('messages')
@@ -152,12 +156,8 @@ function MessagesContent() {
       return
     }
 
-    // Mark messages as read
-    await supabase
-      .from('messages')
-      .update({ is_read: true })
-      .eq('conversation_id', convoId)
-      .neq('sender_id', user.id)
+    // Mark messages as read using the context function
+    await markMessagesAsRead(convoId)
 
     // Batch fetch sender profiles
     const senderIds = [...new Set(messagesRaw.map(m => m.sender_id))]
@@ -177,7 +177,7 @@ function MessagesContent() {
     setMessages(messagesWithSender)
     scrollToBottom()
 
-    // Update unread count in UI
+    // Update unread count in local UI immediately
     setConversations(prev => prev.map(c => 
       c.id === convoId ? { ...c, unreadCount: 0 } : c
     ))
@@ -189,14 +189,14 @@ function MessagesContent() {
     }, 100)
   }
 
-  const selectConversation = (convo) => {
+  const selectConversation = async (convo) => {
     setSelectedConvo(convo)
-    loadMessages(convo.id)
+    await loadMessages(convo.id)
   }
 
   const sendMessage = async (e) => {
     e.preventDefault()
-    if (!newMessage.trim() || !selectedConvo) return
+    if (!newMessage.trim() || !selectedConvo || !user || !supabase) return
 
     setSendingMessage(true)
     try {
@@ -204,7 +204,7 @@ function MessagesContent() {
         .from('messages')
         .insert({
           conversation_id: selectedConvo.id,
-          sender_id: currentUser.id,
+          sender_id: user.id,
           content: newMessage.trim(),
         })
         .select()
@@ -216,7 +216,7 @@ function MessagesContent() {
       const { data: senderProfile } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, username')
-        .eq('id', currentUser.id)
+        .eq('id', user.id)
         .single()
 
       const messageWithSender = { ...msgData, sender: senderProfile }
@@ -254,7 +254,7 @@ function MessagesContent() {
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0)
   const totalPending = pendingConversations.length
 
-  if (loading) {
+  if (!isInitialized || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
@@ -299,7 +299,7 @@ function MessagesContent() {
         )}
         {convo.lastMessage && (
           <p className={`text-sm truncate mt-0.5 ${convo.unreadCount > 0 ? 'text-white/80' : 'text-muted-foreground'}`}>
-            {convo.lastMessage.sender_id === currentUser?.id && (
+            {convo.lastMessage.sender_id === user?.id && (
               <span className="inline-flex items-center mr-1">
                 {convo.lastMessage.is_read ? (
                   <CheckCheck className="h-3 w-3 text-white" />
@@ -417,9 +417,9 @@ function MessagesContent() {
                       {messages.map((msg) => (
                         <div
                           key={msg.id}
-                          className={`flex items-end gap-2 ${msg.sender_id === currentUser.id ? 'justify-end' : 'justify-start'}`}
+                          className={`flex items-end gap-2 ${msg.sender_id === user?.id ? 'justify-end' : 'justify-start'}`}
                         >
-                          {msg.sender_id !== currentUser.id && (
+                          {msg.sender_id !== user?.id && (
                             <Avatar className="h-8 w-8">
                               <AvatarImage src={msg.sender?.avatar_url} />
                               <AvatarFallback className="text-xs bg-white/10">
@@ -429,17 +429,17 @@ function MessagesContent() {
                           )}
                           <div
                             className={`max-w-[70%] rounded-2xl px-4 py-2 ${
-                              msg.sender_id === currentUser.id
+                              msg.sender_id === user?.id
                                 ? 'bg-white text-background'
                                 : 'bg-secondary'
                             }`}
                           >
                             <p className="text-sm">{msg.content}</p>
-                            <div className={`flex items-center gap-1 mt-1 ${msg.sender_id === currentUser.id ? 'text-background/60' : 'text-muted-foreground'}`}>
+                            <div className={`flex items-center gap-1 mt-1 ${msg.sender_id === user?.id ? 'text-background/60' : 'text-muted-foreground'}`}>
                               <p className="text-xs">
                                 {formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}
                               </p>
-                              {msg.sender_id === currentUser.id && (
+                              {msg.sender_id === user?.id && (
                                 msg.is_read ? (
                                   <CheckCheck className="h-3 w-3" />
                                 ) : (
