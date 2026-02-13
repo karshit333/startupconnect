@@ -56,35 +56,35 @@ export default function LoginPage() {
       {/* Header */}
       <header className="p-4">
         <Link href="/" className="flex items-center gap-2 w-fit">
-          <div className="w-9 h-9 bg-primary rounded flex items-center justify-center">
-            <span className="text-white font-bold text-lg">in</span>
+          <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
+            <span className="text-background font-bold text-lg">SC</span>
           </div>
-          <span className="text-2xl font-semibold text-primary">Startup Connect</span>
+          <span className="text-xl font-semibold">Startup Connect</span>
         </Link>
       </header>
 
-      <div className="flex justify-center px-4 py-8">
-        <div className="w-full max-w-[352px]">
-          <Card className="border shadow-lg">
+      <div className="flex justify-center px-4 py-12">
+        <div className="w-full max-w-sm">
+          <Card className="bg-card border-border">
             <CardHeader className="space-y-1 pb-4">
-              <CardTitle className="text-3xl font-normal">Sign in</CardTitle>
-              <CardDescription>Stay updated on the startup world</CardDescription>
+              <CardTitle className="text-2xl">Sign in</CardTitle>
+              <CardDescription className="text-muted-foreground">Stay updated on the startup world</CardDescription>
             </CardHeader>
             <form onSubmit={handleLogin}>
               <CardContent className="space-y-4">
-                <div className="space-y-1">
-                  <Label htmlFor="email" className="text-sm text-muted-foreground">Email</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="email" className="text-muted-foreground">Email</Label>
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
-                    className="h-12"
+                    className="h-11 bg-secondary border-0"
                   />
                 </div>
-                <div className="space-y-1">
-                  <Label htmlFor="password" className="text-sm text-muted-foreground">Password</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="password" className="text-muted-foreground">Password</Label>
                   <div className="relative">
                     <Input
                       id="password"
@@ -92,30 +92,24 @@ export default function LoginPage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="h-12 pr-12"
+                      className="h-11 bg-secondary border-0 pr-16"
                     />
                     <Button
                       type="button"
                       variant="ghost"
                       size="sm"
-                      className="absolute right-1 top-1/2 -translate-y-1/2 text-primary hover:text-primary/80 font-semibold"
+                      className="absolute right-1 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white"
                       onClick={() => setShowPassword(!showPassword)}
                     >
                       {showPassword ? 'Hide' : 'Show'}
                     </Button>
                   </div>
                 </div>
-                <Link href="#" className="text-primary font-semibold text-sm hover:underline block">
-                  Forgot password?
-                </Link>
               </CardContent>
               <CardFooter className="flex flex-col gap-4">
-                <Button type="submit" className="w-full h-12 bg-primary hover:bg-primary/90 text-base font-semibold" disabled={loading}>
+                <Button type="submit" className="w-full h-11 bg-white text-background hover:bg-white/90 font-semibold" disabled={loading}>
                   {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Signing in...
-                    </>
+                    <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     'Sign in'
                   )}
@@ -124,9 +118,9 @@ export default function LoginPage() {
             </form>
           </Card>
           
-          <p className="text-center mt-6">
+          <p className="text-center mt-6 text-muted-foreground">
             New to Startup Connect?{' '}
-            <Link href="/auth/register" className="text-primary font-semibold hover:underline">
+            <Link href="/auth/register" className="text-white hover:underline">
               Join now
             </Link>
           </p>

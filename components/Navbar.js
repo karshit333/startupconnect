@@ -14,7 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Home, Search, MessageSquare, Calendar, User, Building2, Settings, LogOut, Shield, ChevronDown, Bell } from 'lucide-react'
+import { Home, Search, MessageSquare, Calendar, User, Building2, Settings, LogOut, Shield, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
 
 export default function Navbar() {
@@ -56,7 +56,7 @@ export default function Navbar() {
   const navItems = [
     { href: '/feed', icon: Home, label: 'Home' },
     { href: '/search', icon: Search, label: 'Search' },
-    { href: '/messages', icon: MessageSquare, label: 'Messaging' },
+    { href: '/messages', icon: MessageSquare, label: 'Messages' },
     { href: '/events', icon: Calendar, label: 'Events' },
   ]
 
@@ -67,14 +67,14 @@ export default function Navbar() {
   const isActive = (href) => pathname === href
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b">
+    <header className="sticky top-0 z-50 bg-card border-b border-border">
       <div className="container mx-auto px-4">
-        <div className="flex items-center justify-between h-[52px]">
+        <div className="flex items-center justify-between h-14">
           {/* Logo & Search */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <Link href="/feed" className="flex items-center">
-              <div className="w-[34px] h-[34px] bg-primary rounded flex items-center justify-center">
-                <span className="text-white font-bold text-lg">in</span>
+              <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
+                <span className="text-background font-bold text-lg">SC</span>
               </div>
             </Link>
             
@@ -84,7 +84,7 @@ export default function Navbar() {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
                   placeholder="Search"
-                  className="w-[280px] pl-9 h-[34px] bg-secondary border-0 text-sm focus-visible:ring-1 focus-visible:ring-foreground/20"
+                  className="w-[240px] pl-9 h-9 bg-secondary border-0 text-sm focus-visible:ring-1 focus-visible:ring-white/20"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -93,78 +93,78 @@ export default function Navbar() {
           </div>
 
           {/* Navigation */}
-          <nav className="flex items-center">
+          <nav className="flex items-center gap-1">
             {navItems.map((item) => (
               <Link key={item.href} href={item.href}>
                 <button
-                  className={`flex flex-col items-center justify-center w-[80px] h-[52px] border-b-2 transition-colors ${
+                  className={`flex flex-col items-center justify-center px-4 h-14 border-b-2 transition-colors ${
                     isActive(item.href) 
-                      ? 'border-foreground text-foreground' 
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                      ? 'border-white text-white' 
+                      : 'border-transparent text-muted-foreground hover:text-white'
                   }`}
                 >
-                  <item.icon className="h-6 w-6" strokeWidth={1.5} />
-                  <span className="text-xs mt-0.5 hidden lg:block">{item.label}</span>
+                  <item.icon className="h-5 w-5" strokeWidth={1.5} />
+                  <span className="text-[10px] mt-0.5 hidden lg:block">{item.label}</span>
                 </button>
               </Link>
             ))}
 
             {/* Divider */}
-            <div className="h-[40px] w-px bg-border mx-1" />
+            <div className="h-8 w-px bg-border mx-2" />
 
             {/* Profile Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="flex flex-col items-center justify-center w-[80px] h-[52px] text-muted-foreground hover:text-foreground transition-colors">
+                <button className="flex flex-col items-center justify-center px-3 h-14 text-muted-foreground hover:text-white transition-colors">
                   <Avatar className="h-6 w-6">
                     <AvatarImage src={profile?.avatar_url} />
-                    <AvatarFallback className="text-[10px] bg-primary/10 text-primary">{getInitials(profile?.full_name)}</AvatarFallback>
+                    <AvatarFallback className="text-[10px] bg-white/10">{getInitials(profile?.full_name)}</AvatarFallback>
                   </Avatar>
-                  <span className="text-xs mt-0.5 hidden lg:flex items-center gap-0.5">
+                  <span className="text-[10px] mt-0.5 hidden lg:flex items-center gap-0.5">
                     Me <ChevronDown className="h-3 w-3" />
                   </span>
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-[280px]">
+              <DropdownMenuContent align="end" className="w-64 bg-card border-border">
                 <div className="p-3">
                   <div className="flex items-center gap-3">
-                    <Avatar className="h-14 w-14">
+                    <Avatar className="h-12 w-12">
                       <AvatarImage src={profile?.avatar_url} />
-                      <AvatarFallback className="text-lg bg-primary/10 text-primary">{getInitials(profile?.full_name)}</AvatarFallback>
+                      <AvatarFallback className="bg-white/10">{getInitials(profile?.full_name)}</AvatarFallback>
                     </Avatar>
                     <div>
                       <p className="font-semibold">{profile?.full_name || 'User'}</p>
-                      <p className="text-xs text-muted-foreground">{profile?.bio?.slice(0, 50) || profile?.role}</p>
+                      <p className="text-xs text-muted-foreground capitalize">{profile?.role}</p>
                     </div>
                   </div>
                   <Button 
                     variant="outline" 
-                    className="w-full mt-3 h-8 text-primary border-primary hover:bg-primary/5"
+                    className="w-full mt-3 h-8 border-white/20 hover:bg-white/5"
                     onClick={() => router.push(`/profile/${user?.id}`)}
                   >
                     View Profile
                   </Button>
                 </div>
-                <DropdownMenuSeparator />
-                <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">Account</DropdownMenuLabel>
+                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuLabel className="text-xs text-muted-foreground">Account</DropdownMenuLabel>
                 {profile?.role === 'startup' && (
-                  <DropdownMenuItem onClick={() => router.push('/my-startup')}>
+                  <DropdownMenuItem onClick={() => router.push('/my-startup')} className="cursor-pointer">
                     <Building2 className="mr-2 h-4 w-4" />
                     My Startup
                   </DropdownMenuItem>
                 )}
                 {profile?.role === 'admin' && (
-                  <DropdownMenuItem onClick={() => router.push('/admin')}>
+                  <DropdownMenuItem onClick={() => router.push('/admin')} className="cursor-pointer">
                     <Shield className="mr-2 h-4 w-4" />
                     Admin Panel
                   </DropdownMenuItem>
                 )}
-                <DropdownMenuItem onClick={() => router.push('/settings')}>
+                <DropdownMenuItem onClick={() => router.push('/settings')} className="cursor-pointer">
                   <Settings className="mr-2 h-4 w-4" />
-                  Settings & Privacy
+                  Settings
                 </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={handleSignOut}>
+                <DropdownMenuSeparator className="bg-border" />
+                <DropdownMenuItem onClick={handleSignOut} className="cursor-pointer">
                   <LogOut className="mr-2 h-4 w-4" />
                   Sign Out
                 </DropdownMenuItem>
