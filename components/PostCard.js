@@ -115,7 +115,7 @@ export default function PostCard({ post, currentUserId, onPostUpdate }) {
       if (part.startsWith('@')) {
         const username = part.slice(1)
         return (
-          <Link key={i} href={`/@${username}`} className="text-white font-medium hover:underline">
+          <Link key={i} href={`/u/${username}`} className="text-white font-medium hover:underline">
             {part}
           </Link>
         )
