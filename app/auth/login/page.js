@@ -56,7 +56,7 @@ export default function LoginPage() {
       {/* Header */}
       <header className="p-4">
         <Link href="/" className="flex items-center gap-2 w-fit">
-          <img src="/logo.png" alt="SUCI" className="h-8" />
+          <img src="/logo.png" alt="SUCI" className="h-12" />
         </Link>
       </header>
 
