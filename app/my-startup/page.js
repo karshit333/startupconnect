@@ -127,6 +127,41 @@ export default function MyStartupPage() {
     )
   }
 
+  // Show pending approval page if startup exists but is not approved
+  if (startup && !startup.is_approved) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="container mx-auto px-4 py-6">
+          <div className="max-w-2xl mx-auto">
+            <Card className="bg-card border-border">
+              <CardContent className="py-16 text-center">
+                <div className="w-20 h-20 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-6">
+                  <Clock className="h-10 w-10 text-yellow-500" />
+                </div>
+                <h2 className="text-2xl font-bold mb-3">Approval Pending</h2>
+                <p className="text-muted-foreground mb-2">
+                  Your startup <span className="text-white font-semibold">{startup.name}</span> is under review.
+                </p>
+                <p className="text-muted-foreground text-sm mb-6">
+                  Our admin team will verify your details and approve your startup within 24-48 hours.
+                  You'll be able to create posts and interact with the community once approved.
+                </p>
+                <div className="flex items-center justify-center gap-2 text-sm text-yellow-500 mb-6">
+                  <Clock className="h-4 w-4" />
+                  <span>Submitted {startup.created_at ? new Date(startup.created_at).toLocaleDateString() : 'recently'}</span>
+                </div>
+                <Button variant="outline" onClick={() => router.push('/feed')} className="border-white/20">
+                  Browse Feed While Waiting
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   if (!startup) {
     return (
       <div className="min-h-screen bg-background">
