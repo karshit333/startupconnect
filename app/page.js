@@ -39,19 +39,19 @@ export default function LandingPage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-white border-b sticky top-0 z-50">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+      <header className="border-b border-border sticky top-0 z-50 bg-background/95 backdrop-blur">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-9 h-9 bg-primary rounded flex items-center justify-center">
-              <span className="text-white font-bold text-lg">in</span>
+            <div className="w-9 h-9 bg-white rounded-lg flex items-center justify-center">
+              <span className="text-background font-bold text-lg">SC</span>
             </div>
-            <span className="text-xl font-semibold text-primary">Startup Connect</span>
+            <span className="text-xl font-semibold">Startup Connect</span>
           </div>
           <div className="flex items-center gap-3">
             <Button variant="ghost" className="text-muted-foreground hover:text-foreground" onClick={() => router.push('/auth/login')}>
               Sign in
             </Button>
-            <Button variant="outline" className="border-primary text-primary hover:bg-primary/5" onClick={() => router.push('/auth/register')}>
+            <Button className="bg-white text-background hover:bg-white/90" onClick={() => router.push('/auth/register')}>
               Join now
             </Button>
           </div>
@@ -59,20 +59,22 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <section className="bg-white">
-        <div className="container mx-auto px-4 py-16 md:py-24">
+      <section className="border-b border-border">
+        <div className="container mx-auto px-4 py-20 md:py-28">
           <div className="max-w-3xl">
-            <h1 className="text-4xl md:text-5xl font-light text-foreground/80 mb-6 leading-tight">
-              Welcome to your <span className="text-foreground">startup community</span>
+            <h1 className="text-4xl md:text-5xl font-semibold leading-tight mb-6">
+              Connect with India's
+              <span className="block text-muted-foreground">Startup Ecosystem</span>
             </h1>
-            <p className="text-lg text-muted-foreground mb-8">
-              Connect with India's startup ecosystem. Discover startups, follow their journey, and engage with founders and professionals.
+            <p className="text-lg text-muted-foreground mb-8 max-w-xl">
+              The professional networking platform for Indian startups. Discover startups, follow their journey, and engage with founders.
             </p>
             <div className="flex flex-col sm:flex-row gap-3">
-              <Button size="lg" className="bg-primary hover:bg-primary/90 text-white px-8" onClick={() => router.push('/auth/register')}>
-                Join now
+              <Button size="lg" className="bg-white text-background hover:bg-white/90 px-8" onClick={() => router.push('/auth/register')}>
+                Get Started
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
-              <Button size="lg" variant="outline" className="border-foreground/20" onClick={() => router.push('/auth/login')}>
+              <Button size="lg" variant="outline" className="border-border hover:bg-white/5" onClick={() => router.push('/auth/login')}>
                 Sign in
               </Button>
             </div>
@@ -81,15 +83,15 @@ export default function LandingPage() {
       </section>
 
       {/* Features */}
-      <section className="py-16">
+      <section className="py-20">
         <div className="container mx-auto px-4">
           <h2 className="text-2xl font-semibold text-center mb-3">Explore the platform</h2>
-          <p className="text-muted-foreground text-center mb-10">Everything you need to connect with India's startup ecosystem</p>
+          <p className="text-muted-foreground text-center mb-12">Everything you need to connect with the startup ecosystem</p>
           <div className="grid md:grid-cols-3 gap-4 max-w-5xl mx-auto">
-            <Card className="bg-white border hover:shadow-lg transition-shadow">
+            <Card className="bg-card border-border hover:border-white/20 transition-colors">
               <CardHeader className="pb-2">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                  <Building2 className="h-6 w-6 text-primary" />
+                <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center mb-3">
+                  <Building2 className="h-6 w-6" />
                 </div>
                 <CardTitle className="text-lg">Discover Startups</CardTitle>
               </CardHeader>
@@ -99,10 +101,10 @@ export default function LandingPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="bg-white border hover:shadow-lg transition-shadow">
+            <Card className="bg-card border-border hover:border-white/20 transition-colors">
               <CardHeader className="pb-2">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                  <MessageSquare className="h-6 w-6 text-primary" />
+                <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center mb-3">
+                  <MessageSquare className="h-6 w-6" />
                 </div>
                 <CardTitle className="text-lg">Direct Messaging</CardTitle>
               </CardHeader>
@@ -112,10 +114,10 @@ export default function LandingPage() {
                 </p>
               </CardContent>
             </Card>
-            <Card className="bg-white border hover:shadow-lg transition-shadow">
+            <Card className="bg-card border-border hover:border-white/20 transition-colors">
               <CardHeader className="pb-2">
-                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-3">
-                  <Calendar className="h-6 w-6 text-primary" />
+                <div className="w-12 h-12 rounded-lg bg-white/10 flex items-center justify-center mb-3">
+                  <Calendar className="h-6 w-6" />
                 </div>
                 <CardTitle className="text-lg">Events & Alerts</CardTitle>
               </CardHeader>
@@ -130,23 +132,23 @@ export default function LandingPage() {
       </section>
 
       {/* Stats */}
-      <section className="bg-white border-y py-12">
+      <section className="border-y border-border py-16">
         <div className="container mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8 text-center">
             <div>
-              <div className="text-3xl font-semibold text-primary">500+</div>
+              <div className="text-3xl font-semibold">500+</div>
               <div className="text-sm text-muted-foreground mt-1">Startups</div>
             </div>
             <div>
-              <div className="text-3xl font-semibold text-primary">10K+</div>
+              <div className="text-3xl font-semibold">10K+</div>
               <div className="text-sm text-muted-foreground mt-1">Professionals</div>
             </div>
             <div>
-              <div className="text-3xl font-semibold text-primary">50+</div>
+              <div className="text-3xl font-semibold">50+</div>
               <div className="text-sm text-muted-foreground mt-1">Cities</div>
             </div>
             <div>
-              <div className="text-3xl font-semibold text-primary">100+</div>
+              <div className="text-3xl font-semibold">100+</div>
               <div className="text-sm text-muted-foreground mt-1">Events/Month</div>
             </div>
           </div>
@@ -154,18 +156,18 @@ export default function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="py-16">
+      <section className="py-20">
         <div className="container mx-auto px-4 text-center">
-          <h2 className="text-2xl font-semibold mb-3">Join your startup community</h2>
+          <h2 className="text-2xl font-semibold mb-3">Join the community</h2>
           <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
-            Whether you're a professional looking to connect or a startup wanting to grow, there's a place for you.
+            Whether you're a professional or a startup, there's a place for you.
           </p>
           <div className="flex gap-3 justify-center flex-wrap">
-            <Button size="lg" className="bg-primary hover:bg-primary/90" onClick={() => router.push('/auth/register?type=user')}>
+            <Button size="lg" className="bg-white text-background hover:bg-white/90" onClick={() => router.push('/auth/register?type=user')}>
               <Users className="mr-2 h-4 w-4" />
               Join as Professional
             </Button>
-            <Button size="lg" variant="outline" onClick={() => router.push('/auth/register?type=startup')}>
+            <Button size="lg" variant="outline" className="border-border hover:bg-white/5" onClick={() => router.push('/auth/register?type=startup')}>
               <Building2 className="mr-2 h-4 w-4" />
               Register Startup
             </Button>
@@ -174,15 +176,15 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-foreground text-white py-12">
+      <footer className="border-t border-border py-8">
         <div className="container mx-auto px-4">
-          <div className="flex items-center gap-2 mb-6">
-            <div className="w-8 h-8 bg-white rounded flex items-center justify-center">
-              <span className="text-primary font-bold">in</span>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-7 h-7 bg-white rounded flex items-center justify-center">
+              <span className="text-background font-bold text-sm">SC</span>
             </div>
-            <span className="font-semibold">Startup Connect India</span>
+            <span className="font-medium">Startup Connect India</span>
           </div>
-          <p className="text-white/60 text-sm">© 2025 Startup Connect India. Built for the Indian startup ecosystem.</p>
+          <p className="text-sm text-muted-foreground">© 2025 Startup Connect India. Built for the Indian startup ecosystem.</p>
         </div>
       </footer>
     </div>
