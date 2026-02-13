@@ -215,70 +215,97 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-100">
+      <div className="min-h-screen bg-muted/30">
         <Navbar />
         <div className="container mx-auto px-4 py-6">
-          <div className="h-64 bg-white rounded-lg skeleton-shimmer" />
+          <div className="mb-6">
+            <div className="h-8 w-48 skeleton rounded mb-2" />
+            <div className="h-4 w-64 skeleton rounded" />
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+            {[1,2,3,4].map(i => (
+              <div key={i} className="bg-card border rounded-lg p-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 skeleton rounded-lg" />
+                  <div>
+                    <div className="h-6 w-12 skeleton rounded mb-1" />
+                    <div className="h-4 w-16 skeleton rounded" />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+          <TableSkeleton rows={5} />
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-muted/30">
       <Navbar />
       <div className="container mx-auto px-4 py-6">
         {/* Header */}
         <div className="mb-6">
-          <div className="flex items-center gap-2 mb-2">
-            <Shield className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">Admin Panel</h1>
+          <div className="flex items-center gap-2 mb-1">
+            <div className="w-8 h-8 rounded-lg bg-foreground flex items-center justify-center">
+              <Shield className="h-4 w-4 text-background" />
+            </div>
+            <h1 className="text-xl font-semibold">Admin Panel</h1>
           </div>
-          <p className="text-muted-foreground">Manage startups, events, and platform settings</p>
+          <p className="text-sm text-muted-foreground">Manage startups, events, and platform settings</p>
         </div>
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Users className="h-8 w-8 text-blue-500" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <Users className="h-5 w-5" />
+                </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.users}</p>
-                  <p className="text-sm text-muted-foreground">Users</p>
+                  <p className="text-2xl font-semibold">{stats.users}</p>
+                  <p className="text-xs text-muted-foreground">Users</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Building2 className="h-8 w-8 text-green-500" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <Building2 className="h-5 w-5" />
+                </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.startups}</p>
-                  <p className="text-sm text-muted-foreground">Startups</p>
+                  <p className="text-2xl font-semibold">{stats.startups}</p>
+                  <p className="text-xs text-muted-foreground">Startups</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <AlertCircle className="h-8 w-8 text-yellow-500" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <AlertCircle className="h-5 w-5" />
+                </div>
                 <div>
-                  <p className="text-2xl font-bold">{pendingStartups.length}</p>
-                  <p className="text-sm text-muted-foreground">Pending</p>
+                  <p className="text-2xl font-semibold">{pendingStartups.length}</p>
+                  <p className="text-xs text-muted-foreground">Pending</p>
                 </div>
               </div>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="pt-6">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-8 w-8 text-purple-500" />
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center">
+                  <Calendar className="h-5 w-5" />
+                </div>
                 <div>
-                  <p className="text-2xl font-bold">{stats.events}</p>
-                  <p className="text-sm text-muted-foreground">Events</p>
+                  <p className="text-2xl font-semibold">{stats.events}</p>
+                  <p className="text-xs text-muted-foreground">Events</p>
                 </div>
               </div>
             </CardContent>
