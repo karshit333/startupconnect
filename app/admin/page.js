@@ -70,12 +70,14 @@ export default function AdminPage() {
   }, [router, supabase])
 
   const loadData = async () => {
-    // Load pending startups
-    const { data: pending } = await supabase
+    // Load pending startups (is_approved = false OR is_approved IS NULL)
+    const { data: pending, error: pendingError } = await supabase
       .from('startups')
       .select(`*, profiles:user_id(full_name, email)`)
-      .eq('is_approved', false)
+      .or('is_approved.eq.false,is_approved.is.null')
       .order('created_at', { ascending: false })
+    
+    console.log('Pending startups:', pending, 'Error:', pendingError)
     setPendingStartups(pending || [])
 
     // Load all startups
