@@ -42,21 +42,37 @@ export default function SavedPage() {
             *,
             startups (id, name, logo_url, domain, username),
             likes (user_id),
-            comments (
-              id,
-              content,
-              created_at,
-              profiles:user_id (full_name, avatar_url, username)
-            )
+            comments (id, content, created_at, user_id)
           `)
           .in('id', postIds)
 
-        const processedPosts = postsData?.map(post => ({
-          ...post,
-          likes_count: post.likes?.length || 0,
-          user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
-          user_has_saved: true,
-        })) || []
+        // Fetch profiles for comments
+        const processedPosts = await Promise.all((postsData || []).map(async (post) => {
+          const commentUserIds = [...new Set(post.comments?.map(c => c.user_id) || [])]
+          
+          let profilesMap = {}
+          if (commentUserIds.length > 0) {
+            const { data: profiles } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url, username')
+              .in('id', commentUserIds)
+            
+            profiles?.forEach(p => { profilesMap[p.id] = p })
+          }
+
+          const commentsWithProfiles = post.comments?.map(comment => ({
+            ...comment,
+            profiles: profilesMap[comment.user_id] || null
+          })) || []
+
+          return {
+            ...post,
+            comments: commentsWithProfiles,
+            likes_count: post.likes?.length || 0,
+            user_has_liked: post.likes?.some(like => like.user_id === user.id) || false,
+            user_has_saved: true,
+          }
+        }))
 
         setSavedPosts(processedPosts)
       }
