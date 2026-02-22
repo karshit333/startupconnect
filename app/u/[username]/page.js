@@ -36,6 +36,7 @@ export default function UsernamePage() {
   const [loading, setLoading] = useState(!cachedData)
   const [isFollowing, setIsFollowing] = useState(cachedData?.isFollowing || false)
   const [followersCount, setFollowersCount] = useState(cachedData?.followersCount || 0)
+  const [followingCount, setFollowingCount] = useState(cachedData?.followingCount || 0)
   const mountedRef = useRef(true)
 
   // Cleanup on unmount
