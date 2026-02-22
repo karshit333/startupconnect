@@ -301,6 +301,7 @@ export default function MyStartupPage() {
           </Card>
         </div>
       </div>
+      <MobileNav />
 
       {/* Create Post Dialog */}
       <CreatePostDialog
