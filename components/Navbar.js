@@ -14,12 +14,12 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { Home, Search, MessageSquare, Calendar, Building2, Settings, LogOut, Shield, ChevronDown, Bookmark, Plus } from 'lucide-react'
+import { Home, Search, MessageSquare, Calendar, Building2, Settings, LogOut, Shield, ChevronDown, Bookmark, Plus, Bell } from 'lucide-react'
 import Link from 'next/link'
 import CreatePostDialog from './CreatePostDialog'
 
 export default function Navbar() {
-  const { user, profile, startup, unreadMessages, pendingMessages, signOut, isLoading } = useUser()
+  const { user, profile, startup, unreadMessages, pendingMessages, unreadNotifications, signOut, isLoading } = useUser()
   const [searchQuery, setSearchQuery] = useState('')
   const [createPostOpen, setCreatePostOpen] = useState(false)
   const router = useRouter()
@@ -41,14 +41,16 @@ export default function Navbar() {
     router.refresh()
   }
 
-  const totalBadge = unreadMessages + pendingMessages
+  const totalMessageBadge = (unreadMessages || 0) + (pendingMessages || 0)
+  const notifBadge = unreadNotifications || 0
 
   const navItems = useMemo(() => [
     { href: '/feed', icon: Home, label: 'Home' },
     { href: '/search', icon: Search, label: 'Search' },
-    { href: '/messages', icon: MessageSquare, label: 'Messages', badge: totalBadge },
+    { href: '/notifications', icon: Bell, label: 'Alerts', badge: notifBadge },
+    { href: '/messages', icon: MessageSquare, label: 'Messages', badge: totalMessageBadge },
     { href: '/events', icon: Calendar, label: 'Events' },
-  ], [totalBadge])
+  ], [totalMessageBadge, notifBadge])
 
   const getInitials = useCallback((name) => {
     return name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
