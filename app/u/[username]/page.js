@@ -482,7 +482,7 @@ export default function UsernamePage() {
                   )}
                 </div>
               </div>
-              <div className="mt-4 flex items-center gap-4 text-xs text-muted-foreground">
+              <div className="mt-4 flex items-center gap-4 text-sm text-muted-foreground">
                 <span className="flex items-center gap-1">
                   <Calendar className="h-4 w-4" />
                   Joined {profileData?.created_at ? formatDistanceToNow(new Date(profileData.created_at), { addSuffix: true }) : 'recently'}
@@ -491,7 +491,7 @@ export default function UsernamePage() {
                   href={`/u/${cleanUsername}/following`}
                   className="hover:text-white transition-colors"
                 >
-                  Following
+                  <span className="font-semibold text-white">{followingCount}</span> Following
                 </Link>
               </div>
             </CardContent>
