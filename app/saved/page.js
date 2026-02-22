@@ -134,6 +134,7 @@ export default function SavedPage() {
           )}
         </div>
       </div>
+      <MobileNav />
     </div>
   )
 }
