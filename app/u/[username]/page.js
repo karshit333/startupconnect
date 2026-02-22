@@ -417,7 +417,13 @@ export default function UsernamePage() {
                     href={`/u/${cleanUsername}/followers`}
                     className="flex items-center gap-1 hover:text-white transition-colors"
                   >
-                    <UserPlus className="h-4 w-4" />{followersCount} followers
+                    <span className="font-semibold text-white">{followersCount}</span> followers
+                  </Link>
+                  <Link 
+                    href={`/u/${cleanUsername}/following`}
+                    className="hover:text-white transition-colors"
+                  >
+                    <span className="font-semibold text-white">{followingCount}</span> following
                   </Link>
                 </div>
               </CardContent>
