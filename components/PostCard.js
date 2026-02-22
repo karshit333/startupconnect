@@ -111,6 +111,16 @@ export default function PostCard({ post, currentUserId, onPostUpdate }) {
       
       setComments(prev => [...prev, { ...data, profiles: profileData }])
       setNewComment('')
+
+      // Create notification for comment (don't notify self)
+      if (post.startups?.user_id && post.startups.user_id !== currentUserId) {
+        await supabase.from('notifications').insert({
+          user_id: post.startups.user_id,
+          actor_id: currentUserId,
+          post_id: post.id,
+          type: 'comment'
+        })
+      }
     } catch (error) {
       toast.error('Failed to add comment')
     } finally {
