@@ -185,6 +185,18 @@ function MessagesContent() {
   const loadMessages = async (convoId) => {
     if (!user || !supabase) return
     
+    // FIRST: Mark messages as read IMMEDIATELY - this updates navbar badge
+    await markMessagesAsRead(convoId)
+    
+    // Update local conversation unread count to 0 IMMEDIATELY
+    setConversations(prev => prev.map(c => 
+      c.id === convoId ? { ...c, unreadCount: 0 } : c
+    ))
+    // Also update cache
+    messagesCache.conversations = messagesCache.conversations.map(c =>
+      c.id === convoId ? { ...c, unreadCount: 0 } : c
+    )
+    
     const { data: messagesRaw } = await supabase
       .from('messages')
       .select('*')
@@ -195,9 +207,6 @@ function MessagesContent() {
       if (mountedRef.current) setMessages([])
       return
     }
-
-    // IMPORTANT: Mark messages as read FIRST - this updates navbar badge
-    await markMessagesAsRead(convoId)
 
     // Use cached profiles if available, otherwise fetch
     const senderIds = [...new Set(messagesRaw.map(m => m.sender_id))]
@@ -219,15 +228,6 @@ function MessagesContent() {
 
     if (mountedRef.current) {
       setMessages(messagesWithSender)
-      
-      // Update local conversation unread count to 0 IMMEDIATELY
-      setConversations(prev => prev.map(c => 
-        c.id === convoId ? { ...c, unreadCount: 0 } : c
-      ))
-      // Also update cache
-      messagesCache.conversations = messagesCache.conversations.map(c =>
-        c.id === convoId ? { ...c, unreadCount: 0 } : c
-      )
     }
     
     scrollToBottom()
