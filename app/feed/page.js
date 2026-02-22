@@ -354,6 +354,7 @@ export default function FeedPage() {
           </div>
         </div>
       </div>
+      <MobileNav />
     </div>
   )
 }
