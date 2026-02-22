@@ -43,9 +43,24 @@ export default function PostCard({ post, currentUserId, onPostUpdate }) {
       if (liked) {
         await supabase.from('likes').delete().eq('post_id', post.id).eq('user_id', currentUserId)
         setLikesCount(prev => prev - 1)
+        // Delete notification
+        await supabase.from('notifications').delete()
+          .eq('user_id', post.startups?.user_id)
+          .eq('actor_id', currentUserId)
+          .eq('post_id', post.id)
+          .eq('type', 'like')
       } else {
         await supabase.from('likes').insert({ post_id: post.id, user_id: currentUserId })
         setLikesCount(prev => prev + 1)
+        // Create notification (don't notify self)
+        if (post.startups?.user_id && post.startups.user_id !== currentUserId) {
+          await supabase.from('notifications').insert({
+            user_id: post.startups.user_id,
+            actor_id: currentUserId,
+            post_id: post.id,
+            type: 'like'
+          })
+        }
       }
       setLiked(!liked)
     } catch (error) {
