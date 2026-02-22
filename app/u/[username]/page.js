@@ -222,12 +222,27 @@ export default function UsernamePage() {
           .eq('user_id', user.id)
           .eq('startup_id', startupData.id)
         setFollowersCount(prev => prev - 1)
+        
+        // Delete follow notification
+        await supabase.from('notifications').delete()
+          .eq('user_id', startupData.user_id)
+          .eq('actor_id', user.id)
+          .eq('type', 'follow')
       } else {
         await supabase.from('follows').insert({
           user_id: user.id,
           startup_id: startupData.id
         })
         setFollowersCount(prev => prev + 1)
+        
+        // Create follow notification
+        if (startupData.user_id !== user.id) {
+          await supabase.from('notifications').insert({
+            user_id: startupData.user_id,
+            actor_id: user.id,
+            type: 'follow'
+          })
+        }
       }
       setIsFollowing(!isFollowing)
     } catch (error) {
