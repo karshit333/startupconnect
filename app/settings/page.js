@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
+import MobileNav from '@/components/MobileNav'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,13 +12,15 @@ import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Separator } from '@/components/ui/separator'
-import { Settings, User, Lock, Loader2, Camera, AtSign, Check, AlertCircle } from 'lucide-react'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { Settings, User, Lock, Loader2, Camera, AtSign, Check, AlertCircle, Trash2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { validateUsername } from '@/lib/utils/username'
 
 export default function SettingsPage() {
   const [user, setUser] = useState(null)
   const [profile, setProfile] = useState(null)
+  const [startup, setStartup] = useState(null)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingUsername, setSavingUsername] = useState(false)
@@ -25,6 +28,9 @@ export default function SettingsPage() {
   const [formData, setFormData] = useState({ full_name: '', bio: '', skills: '' })
   const [username, setUsername] = useState('')
   const [usernameStatus, setUsernameStatus] = useState({ checking: false, available: null, error: null })
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = useState('')
+  const [deleting, setDeleting] = useState(false)
   const router = useRouter()
   const supabase = createClient()
 
@@ -45,6 +51,13 @@ export default function SettingsPage() {
         skills: profileData?.skills?.join(', ') || '',
       })
       setUsername(profileData?.username || '')
+
+      // Get startup if user is a startup owner
+      if (profileData?.role === 'startup') {
+        const { data: startupData } = await supabase.from('startups').select('*').eq('user_id', user.id).single()
+        setStartup(startupData)
+      }
+
       setLoading(false)
     }
     init()
@@ -127,12 +140,23 @@ export default function SettingsPage() {
 
     setSavingUsername(true)
     try {
+      // Update profile username
       const { error } = await supabase.from('profiles').update({
         username: validation.username,
         updated_at: new Date().toISOString(),
       }).eq('id', user.id)
 
       if (error) throw error
+
+      // Also update startup username if exists
+      if (startup) {
+        await supabase.from('startups').update({
+          username: validation.username,
+          updated_at: new Date().toISOString(),
+        }).eq('user_id', user.id)
+        setStartup({ ...startup, username: validation.username })
+      }
+
       setProfile({ ...profile, username: validation.username })
       toast.success('Username updated!')
     } catch (error) {
@@ -161,21 +185,76 @@ export default function SettingsPage() {
     }
   }
 
+  const handleDeleteAccount = async () => {
+    if (deleteConfirmText !== 'DELETE') {
+      toast.error('Please type DELETE to confirm')
+      return
+    }
+
+    setDeleting(true)
+    try {
+      // Delete user's data in order (respecting foreign keys)
+      // 1. Delete notifications
+      await supabase.from('notifications').delete().or(`user_id.eq.${user.id},actor_id.eq.${user.id}`)
+      
+      // 2. Delete messages
+      await supabase.from('messages').delete().eq('sender_id', user.id)
+      
+      // 3. Delete conversations where user is participant
+      await supabase.from('conversations').delete().or(`participant_1.eq.${user.id},participant_2.eq.${user.id}`)
+      
+      // 4. Delete comments
+      await supabase.from('comments').delete().eq('user_id', user.id)
+      
+      // 5. Delete likes
+      await supabase.from('likes').delete().eq('user_id', user.id)
+      
+      // 6. Delete saved posts
+      await supabase.from('saved_posts').delete().eq('user_id', user.id)
+      
+      // 7. Delete follows
+      await supabase.from('follows').delete().eq('user_id', user.id)
+      
+      // 8. If startup, delete startup-related data
+      if (startup) {
+        await supabase.from('follows').delete().eq('startup_id', startup.id)
+        await supabase.from('posts').delete().eq('startup_id', startup.id)
+        await supabase.from('startups').delete().eq('id', startup.id)
+      }
+      
+      // 9. Delete profile
+      await supabase.from('profiles').delete().eq('id', user.id)
+      
+      // 10. Sign out and delete auth user (this will be handled by Supabase)
+      await supabase.auth.signOut()
+      
+      toast.success('Account deleted successfully')
+      router.push('/')
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Failed to delete account. Please contact support.')
+    } finally {
+      setDeleting(false)
+      setDeleteDialogOpen(false)
+    }
+  }
+
   const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'U'
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-20 md:pb-0">
         <Navbar />
         <div className="container mx-auto px-4 py-6">
           <div className="max-w-2xl mx-auto bg-card rounded-lg border border-border p-6 h-96 skeleton" />
         </div>
+        <MobileNav />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Navbar />
       <div className="container mx-auto px-4 py-6">
         <div className="max-w-2xl mx-auto space-y-6">
@@ -198,7 +277,7 @@ export default function SettingsPage() {
                     <div className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">@</div>
                     <Input
                       value={username}
-                      onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ''))}
                       onBlur={() => username && checkUsernameAvailability(username)}
                       className="bg-secondary border-0 pl-8 pr-10"
                       placeholder="yourname"
@@ -299,8 +378,73 @@ export default function SettingsPage() {
               </div>
             </CardContent>
           </Card>
+
+          {/* Danger Zone */}
+          <Card className="bg-card border-red-500/20">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-red-500"><Trash2 className="h-5 w-5" />Danger Zone</CardTitle>
+              <CardDescription>Irreversible actions</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <p className="font-medium">Delete Account</p>
+                  <p className="text-sm text-muted-foreground">Permanently delete your account and all data</p>
+                </div>
+                <Button 
+                  variant="destructive" 
+                  onClick={() => setDeleteDialogOpen(true)}
+                  className="bg-red-500/10 text-red-500 hover:bg-red-500/20 border border-red-500/20"
+                >
+                  Delete Account
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
+      <MobileNav />
+
+      {/* Delete Confirmation Dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="bg-card border-border">
+          <DialogHeader>
+            <DialogTitle className="text-red-500">Delete Account</DialogTitle>
+            <DialogDescription>
+              This action cannot be undone. This will permanently delete your account and remove all your data including:
+            </DialogDescription>
+          </DialogHeader>
+          <ul className="text-sm text-muted-foreground space-y-1 ml-4 list-disc">
+            <li>Your profile and settings</li>
+            <li>All your posts and comments</li>
+            <li>Your messages and conversations</li>
+            <li>Your startup (if any)</li>
+            <li>All followers and following data</li>
+          </ul>
+          <div className="space-y-2">
+            <Label>Type <span className="text-red-500 font-bold">DELETE</span> to confirm</Label>
+            <Input 
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="DELETE"
+              className="bg-secondary border-0"
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDeleteDialogOpen(false)} className="border-white/20">
+              Cancel
+            </Button>
+            <Button 
+              variant="destructive" 
+              onClick={handleDeleteAccount}
+              disabled={deleteConfirmText !== 'DELETE' || deleting}
+              className="bg-red-500 hover:bg-red-600"
+            >
+              {deleting ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : 'Delete Account'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
