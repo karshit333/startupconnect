@@ -128,6 +128,7 @@ export default function UsernamePage() {
         setPosts(cached.posts || [])
         setIsFollowing(cached.isFollowing || false)
         setFollowersCount(cached.followersCount || 0)
+        setFollowingCount(cached.followingCount || 0)
         setLoading(false)
       }
       return
@@ -142,6 +143,14 @@ export default function UsernamePage() {
 
     if (profile) {
       if (mountedRef.current) setProfileData(profile)
+      
+      // Get following count for this user
+      const { count: followingCt } = await supabase
+        .from('follows')
+        .select('*', { count: 'exact', head: true })
+        .eq('user_id', profile.id)
+      
+      if (mountedRef.current) setFollowingCount(followingCt || 0)
       
       // If it's a startup account, get their startup
       if (profile.role === 'startup') {
@@ -161,10 +170,22 @@ export default function UsernamePage() {
             startup,
             posts: profileCache.data[cleanUsername]?.posts || [],
             isFollowing: profileCache.data[cleanUsername]?.isFollowing || false,
-            followersCount: profileCache.data[cleanUsername]?.followersCount || 0
+            followersCount: profileCache.data[cleanUsername]?.followersCount || 0,
+            followingCount: followingCt || 0
           }
           profileCache.lastFetch[cleanUsername] = Date.now()
         }
+      } else {
+        // Update cache for regular user
+        profileCache.data[cleanUsername] = {
+          profile,
+          startup: null,
+          posts: [],
+          isFollowing: false,
+          followersCount: 0,
+          followingCount: followingCt || 0
+        }
+        profileCache.lastFetch[cleanUsername] = Date.now()
       }
       if (mountedRef.current) setLoading(false)
       return
