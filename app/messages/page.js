@@ -542,6 +542,7 @@ function MessagesContent() {
           </div>
         </Card>
       </div>
+      <MobileNav />
     </div>
   )
 }
@@ -549,7 +550,7 @@ function MessagesContent() {
 export default function MessagesPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center pb-20 md:pb-0">
         <div className="w-10 h-10 skeleton rounded" />
       </div>
     }>
