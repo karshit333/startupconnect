@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { useUser } from '@/lib/context/UserContext'
 import Navbar from '@/components/Navbar'
+import MobileNav from '@/components/MobileNav'
 import PostCard from '@/components/PostCard'
 import { Card, CardContent } from '@/components/ui/card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
@@ -12,6 +13,7 @@ import { Badge } from '@/components/ui/badge'
 import { MapPin, Users, Globe, MessageSquare, Calendar, Edit, UserPlus, CheckCircle, Clock } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { toast } from 'sonner'
+import Link from 'next/link'
 
 // Module-level cache for profile data
 const profileCache = {
