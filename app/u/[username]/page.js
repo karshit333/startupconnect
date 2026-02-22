@@ -391,7 +391,12 @@ export default function UsernamePage() {
                   {startupData.team_size && (
                     <span className="flex items-center gap-1"><Users className="h-4 w-4" />{startupData.team_size} members</span>
                   )}
-                  <span className="flex items-center gap-1"><UserPlus className="h-4 w-4" />{followersCount} followers</span>
+                  <Link 
+                    href={`/u/${cleanUsername}/followers`}
+                    className="flex items-center gap-1 hover:text-white transition-colors"
+                  >
+                    <UserPlus className="h-4 w-4" />{followersCount} followers
+                  </Link>
                 </div>
               </CardContent>
             </Card>
@@ -412,6 +417,7 @@ export default function UsernamePage() {
             )}
           </div>
         </div>
+        <MobileNav />
       </div>
     )
   }
