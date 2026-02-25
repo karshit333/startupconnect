@@ -209,6 +209,16 @@ export default function Navbar() {
                 </DropdownMenuContent>
               </DropdownMenu>
             </nav>
+
+            {/* Mobile - only show create post button for startups */}
+            {canCreatePost && (
+              <button
+                onClick={() => setCreatePostOpen(true)}
+                className="md:hidden flex items-center justify-center h-9 w-9 rounded-full bg-white text-background"
+              >
+                <Plus className="h-5 w-5" />
+              </button>
+            )}
           </div>
         </div>
       </header>
