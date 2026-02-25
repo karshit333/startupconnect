@@ -200,11 +200,11 @@ export default function FeedPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Navbar />
       
       {/* Pending Approval Banner for Startups */}
-      {profile?.role === 'startup' && startup && !startup?.is_approved && (
+      {profile?.role === 'startup' && startup && startup.is_approved !== true && startup.is_approved !== 'true' && (
         <div className="bg-yellow-500/10 border-b border-yellow-500/20">
           <div className="container mx-auto px-4 py-3">
             <div className="flex items-center justify-center gap-2 text-sm text-yellow-500">
