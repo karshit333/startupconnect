@@ -58,7 +58,8 @@ export default function Navbar() {
 
   const isActive = useCallback((href) => pathname === href, [pathname])
 
-  const canCreatePost = profile?.role === 'startup' && startup?.is_approved
+  // Check if startup can create posts - handle both boolean and string values
+  const canCreatePost = profile?.role === 'startup' && startup && (startup.is_approved === true || startup.is_approved === 'true')
 
   // Don't render navbar if still loading initial data
   if (isLoading && !profile) {
