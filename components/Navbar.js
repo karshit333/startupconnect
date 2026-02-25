@@ -226,8 +226,8 @@ export default function Navbar() {
         </div>
       </header>
 
-      {/* Create Post Dialog */}
-      {canCreatePost && (
+      {/* Create Post Dialog - show for ALL startup users */}
+      {isStartupUser && (
         <CreatePostDialog
           open={createPostOpen}
           onOpenChange={setCreatePostOpen}
