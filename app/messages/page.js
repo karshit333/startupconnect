@@ -448,22 +448,31 @@ function MessagesContent() {
             <div className={`${selectedConvo ? 'flex' : 'hidden md:flex'} flex-1 flex-col absolute md:relative inset-0 md:inset-auto bg-card z-10`}>
               {selectedConvo ? (
                 <>
-                  <div className="p-4 border-b border-border flex items-center gap-3">
-                    <Avatar>
+                  <div className="p-3 md:p-4 border-b border-border flex items-center gap-3">
+                    {/* Back button - mobile only */}
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="md:hidden h-8 w-8 shrink-0"
+                      onClick={() => setSelectedConvo(null)}
+                    >
+                      <ArrowLeft className="h-5 w-5" />
+                    </Button>
+                    <Avatar className="h-10 w-10 shrink-0">
                       <AvatarImage src={selectedConvo.otherParticipant?.avatar_url} />
                       <AvatarFallback className="bg-white/10">
                         {getInitials(selectedConvo.otherParticipant?.full_name)}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <p className="font-medium">{selectedConvo.otherParticipant?.full_name}</p>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium truncate">{selectedConvo.otherParticipant?.full_name}</p>
                       {selectedConvo.otherParticipant?.username && (
                         <p className="text-xs text-muted-foreground">@{selectedConvo.otherParticipant.username}</p>
                       )}
                     </div>
                     {selectedConvo.isPending && (
-                      <Badge variant="outline" className="ml-auto text-yellow-500 border-yellow-500">
-                        Message Request
+                      <Badge variant="outline" className="shrink-0 text-yellow-500 border-yellow-500 text-xs">
+                        Request
                       </Badge>
                     )}
                   </div>
