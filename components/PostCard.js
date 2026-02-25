@@ -19,7 +19,7 @@ import Link from 'next/link'
 import { toast } from 'sonner'
 import ShareDialog from './ShareDialog'
 
-export default function PostCard({ post, currentUserId, onPostUpdate }) {
+export default function PostCard({ post, currentUserId, onPostUpdate, onPostDelete }) {
   const [liked, setLiked] = useState(post.user_has_liked || false)
   const [likesCount, setLikesCount] = useState(post.likes_count || 0)
   const [saved, setSaved] = useState(post.user_has_saved || false)
@@ -28,6 +28,7 @@ export default function PostCard({ post, currentUserId, onPostUpdate }) {
   const [newComment, setNewComment] = useState('')
   const [loadingComment, setLoadingComment] = useState(false)
   const [shareDialogOpen, setShareDialogOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
   const supabase = createClient()
 
   // Get all images (support both old single image_url and new images array)
