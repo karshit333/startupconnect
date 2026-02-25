@@ -379,28 +379,29 @@ function MessagesContent() {
   )
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
       <Navbar />
-      <div className="container mx-auto px-4 py-6">
-        <Card className="h-[calc(100vh-140px)] min-h-[500px] bg-card border-border">
-          <div className="flex h-full">
-            {/* Conversations List */}
-            <div className="w-80 border-r border-border flex flex-col">
-              <CardHeader className="pb-0 border-b border-border">
+      <div className="container mx-auto px-0 md:px-4 py-0 md:py-6">
+        <Card className="h-[calc(100vh-64px)] md:h-[calc(100vh-140px)] min-h-[400px] bg-card border-0 md:border md:border-border rounded-none md:rounded-lg">
+          <div className="flex h-full relative">
+            {/* Conversations List - Full width on mobile, fixed width on desktop */}
+            <div className={`${selectedConvo ? 'hidden md:flex' : 'flex'} w-full md:w-80 border-r-0 md:border-r border-border flex-col`}>
+              <CardHeader className="pb-0 border-b border-border px-3 md:px-6">
                 <Tabs value={activeTab} onValueChange={setActiveTab}>
                   <TabsList className="w-full bg-secondary">
-                    <TabsTrigger value="messages" className="flex-1 gap-1 data-[state=active]:bg-white data-[state=active]:text-background">
+                    <TabsTrigger value="messages" className="flex-1 gap-1 text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-background">
                       <Inbox className="h-4 w-4" />
-                      Messages
+                      <span className="hidden sm:inline">Messages</span>
+                      <span className="sm:hidden">Inbox</span>
                       {totalUnread > 0 && (
-                        <Badge className="ml-1 bg-white text-background h-5 px-1.5">{totalUnread}</Badge>
+                        <Badge className="ml-1 bg-white text-background h-5 px-1.5 text-xs">{totalUnread}</Badge>
                       )}
                     </TabsTrigger>
-                    <TabsTrigger value="requests" className="flex-1 gap-1 data-[state=active]:bg-white data-[state=active]:text-background">
+                    <TabsTrigger value="requests" className="flex-1 gap-1 text-xs md:text-sm data-[state=active]:bg-white data-[state=active]:text-background">
                       <Clock className="h-4 w-4" />
                       Requests
                       {totalPending > 0 && (
-                        <Badge className="ml-1 bg-yellow-500 text-background h-5 px-1.5">{totalPending}</Badge>
+                        <Badge className="ml-1 bg-yellow-500 text-background h-5 px-1.5 text-xs">{totalPending}</Badge>
                       )}
                     </TabsTrigger>
                   </TabsList>
@@ -443,8 +444,8 @@ function MessagesContent() {
               </ScrollArea>
             </div>
 
-            {/* Messages Area */}
-            <div className="flex-1 flex flex-col">
+            {/* Messages Area - Full screen overlay on mobile */}
+            <div className={`${selectedConvo ? 'flex' : 'hidden md:flex'} flex-1 flex-col absolute md:relative inset-0 md:inset-auto bg-card z-10`}>
               {selectedConvo ? (
                 <>
                   <div className="p-4 border-b border-border flex items-center gap-3">
