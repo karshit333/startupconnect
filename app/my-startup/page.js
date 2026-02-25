@@ -129,9 +129,10 @@ export default function MyStartupPage() {
   }
 
   // Show pending approval page if startup exists but is not approved
-  if (startup && !startup.is_approved) {
+  const isApproved = startup?.is_approved === true || startup?.is_approved === 'true'
+  if (startup && !isApproved) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-20 md:pb-0">
         <Navbar />
         <div className="container mx-auto px-4 py-6">
           <div className="max-w-2xl mx-auto">
@@ -159,13 +160,14 @@ export default function MyStartupPage() {
             </Card>
           </div>
         </div>
+        <MobileNav />
       </div>
     )
   }
 
   if (!startup) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-20 md:pb-0">
         <Navbar />
         <div className="container mx-auto px-4 py-6">
           <Card className="max-w-4xl mx-auto bg-card border-border">
@@ -176,6 +178,7 @@ export default function MyStartupPage() {
             </CardContent>
           </Card>
         </div>
+        <MobileNav />
       </div>
     )
   }
