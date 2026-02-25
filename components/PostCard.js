@@ -139,6 +139,43 @@ export default function PostCard({ post, currentUserId, onPostUpdate, onPostDele
     }
   }
 
+  // Delete entire post
+  const deletePost = async () => {
+    if (!confirm('Are you sure you want to delete this post? This action cannot be undone.')) {
+      return
+    }
+    
+    setDeleting(true)
+    try {
+      // Delete related data first (likes, comments, saved_posts, notifications)
+      await Promise.all([
+        supabase.from('likes').delete().eq('post_id', post.id),
+        supabase.from('comments').delete().eq('post_id', post.id),
+        supabase.from('saved_posts').delete().eq('post_id', post.id),
+        supabase.from('notifications').delete().eq('post_id', post.id)
+      ])
+      
+      // Delete the post
+      const { error } = await supabase.from('posts').delete().eq('id', post.id)
+      if (error) throw error
+      
+      toast.success('Post deleted')
+      
+      // Callback to parent to remove from list
+      if (onPostDelete) {
+        onPostDelete(post.id)
+      }
+    } catch (error) {
+      console.error('Delete error:', error)
+      toast.error('Failed to delete post')
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  // Check if current user owns this post
+  const isPostOwner = post.startups?.user_id === currentUserId
+
   const getInitials = (name) => name?.split(' ').map(n => n[0]).join('').toUpperCase() || 'S'
 
   // Parse @mentions in text
