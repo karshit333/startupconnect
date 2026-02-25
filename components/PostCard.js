@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
-import { ThumbsUp, MessageSquare, Share2, Send, MoreHorizontal, Globe, Bookmark, BookmarkCheck, Trash2 } from 'lucide-react'
+import { ThumbsUp, MessageSquare, Share2, Send, MoreHorizontal, Globe, Bookmark, BookmarkCheck, Trash2, Loader2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import Link from 'next/link'
 import { toast } from 'sonner'
