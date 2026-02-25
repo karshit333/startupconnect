@@ -271,6 +271,19 @@ export default function PostCard({ post, currentUserId, onPostUpdate, onPostDele
                   <Share2 className="mr-2 h-4 w-4" />
                   Share
                 </DropdownMenuItem>
+                {isPostOwner && (
+                  <>
+                    <DropdownMenuSeparator className="bg-border" />
+                    <DropdownMenuItem 
+                      onClick={deletePost} 
+                      disabled={deleting}
+                      className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+                    >
+                      <Trash2 className="mr-2 h-4 w-4" />
+                      {deleting ? 'Deleting...' : 'Delete Post'}
+                    </DropdownMenuItem>
+                  </>
+                )}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
