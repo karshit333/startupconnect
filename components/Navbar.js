@@ -213,8 +213,8 @@ export default function Navbar() {
               </DropdownMenu>
             </nav>
 
-            {/* Mobile - only show create post button for startups */}
-            {canCreatePost && (
+            {/* Mobile - show create post button for ALL startup users */}
+            {isStartupUser && (
               <button
                 onClick={() => setCreatePostOpen(true)}
                 className="md:hidden flex items-center justify-center h-9 w-9 rounded-full bg-white text-background"
