@@ -68,7 +68,8 @@ export default function CreatePostDialog({ open, onOpenChange, startup, onPostCr
 
   const createPost = async () => {
     // Safety check - prevent unapproved startups from posting
-    if (!startup?.is_approved) {
+    const isApproved = startup?.is_approved === true || startup?.is_approved === 'true'
+    if (!isApproved) {
       toast.error('Your startup must be approved before you can post')
       return
     }
