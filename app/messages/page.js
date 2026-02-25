@@ -527,16 +527,16 @@ function MessagesContent() {
                     </div>
                   </ScrollArea>
 
-                  <form onSubmit={sendMessage} className="p-4 border-t border-border flex gap-2">
+                  <form onSubmit={sendMessage} className="p-3 md:p-4 border-t border-border flex gap-2 mb-16 md:mb-0">
                     <Input
                       placeholder={selectedConvo.isPending ? "Reply to accept..." : "Type a message..."}
                       value={newMessage}
                       onChange={(e) => setNewMessage(e.target.value)}
                       disabled={sendingMessage}
-                      className="bg-secondary border-0"
+                      className="bg-secondary border-0 h-11"
                     />
-                    <Button type="submit" disabled={sendingMessage || !newMessage.trim()} className="bg-white text-background hover:bg-white/90">
-                      <Send className="h-4 w-4" />
+                    <Button type="submit" disabled={sendingMessage || !newMessage.trim()} className="bg-white text-background hover:bg-white/90 h-11 px-4">
+                      <Send className="h-5 w-5" />
                     </Button>
                   </form>
                 </>
