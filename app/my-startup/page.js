@@ -296,6 +296,9 @@ export default function MyStartupPage() {
                       key={post.id}
                       post={post}
                       currentUserId={user?.id}
+                      onPostDelete={(postId) => {
+                        setPosts(prev => prev.filter(p => p.id !== postId))
+                      }}
                     />
                   ))}
                 </div>
