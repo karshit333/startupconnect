@@ -65,10 +65,10 @@ export default function Navbar() {
     return (
       <header className="sticky top-0 z-50 bg-card border-b border-border">
         <div className="container mx-auto px-4">
-          <div className="flex items-center justify-between h-14">
+          <div className="flex items-center justify-between h-14 md:h-14">
             <div className="flex items-center gap-3">
               <Link href="/feed" className="flex items-center">
-                <img src="/logo.png" alt="SUCI" className="h-12" />
+                <img src="/logo.png" alt="SUCI" className="h-10 md:h-12" />
               </Link>
             </div>
             <div className="flex items-center gap-4">
@@ -88,10 +88,10 @@ export default function Navbar() {
             {/* Logo & Search */}
             <div className="flex items-center gap-3">
               <Link href="/feed" className="flex items-center" prefetch={true}>
-                <img src="/logo.png" alt="SUCI" className="h-12" />
+                <img src="/logo.png" alt="SUCI" className="h-10 md:h-12" />
               </Link>
               
-              {/* Search Bar */}
+              {/* Search Bar - Desktop only */}
               <form onSubmit={handleSearch} className="hidden md:flex">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -105,8 +105,8 @@ export default function Navbar() {
               </form>
             </div>
 
-            {/* Navigation */}
-            <nav className="flex items-center gap-1">
+            {/* Navigation - Desktop only */}
+            <nav className="hidden md:flex items-center gap-1">
               {navItems.map((item) => (
                 <Link key={item.href} href={item.href} prefetch={true}>
                   <button
