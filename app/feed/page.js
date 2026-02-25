@@ -269,6 +269,10 @@ export default function FeedPage() {
                     key={post.id}
                     post={post}
                     currentUserId={user?.id}
+                    onPostDelete={(postId) => {
+                      setPosts(prev => prev.filter(p => p.id !== postId))
+                      feedCache.posts = feedCache.posts.filter(p => p.id !== postId)
+                    }}
                   />
                 ))}
               </div>
