@@ -132,8 +132,8 @@ export default function Navbar() {
                 </Link>
               ))}
 
-              {/* Create Post Button (for startups) */}
-              {canCreatePost && (
+              {/* Create Post Button (for ALL startup users - approval checked in dialog) */}
+              {isStartupUser && (
                 <button
                   onClick={() => setCreatePostOpen(true)}
                   className="flex flex-col items-center justify-center px-4 h-14 border-b-2 border-transparent text-muted-foreground hover:text-white transition-colors"
