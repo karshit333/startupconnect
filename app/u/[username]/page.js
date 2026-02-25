@@ -433,7 +433,17 @@ export default function UsernamePage() {
             {posts.length > 0 ? (
               <div className="space-y-4">
                 {posts.map(post => (
-                  <PostCard key={post.id} post={post} currentUserId={user?.id} />
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                    currentUserId={user?.id}
+                    onPostDelete={(postId) => {
+                      setPosts(prev => prev.filter(p => p.id !== postId))
+                      if (profileCache.data[cleanUsername]) {
+                        profileCache.data[cleanUsername].posts = profileCache.data[cleanUsername].posts.filter(p => p.id !== postId)
+                      }
+                    }}
+                  />
                 ))}
               </div>
             ) : (
