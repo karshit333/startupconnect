@@ -309,13 +309,27 @@ export default function PostCard({ post, currentUserId, onPostUpdate }) {
               <Avatar className="h-8 w-8 shrink-0">
                 <AvatarFallback className="text-xs bg-white/10">U</AvatarFallback>
               </Avatar>
-              <Input
-                placeholder="Add a comment..."
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                disabled={loadingComment}
-                className="h-9 bg-secondary border-0 rounded-full text-sm"
-              />
+              <div className="flex-1 flex gap-2">
+                <Input
+                  placeholder="Add a comment..."
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  disabled={loadingComment}
+                  className="h-9 bg-secondary border-0 rounded-full text-sm flex-1"
+                />
+                <Button 
+                  type="submit" 
+                  size="sm" 
+                  disabled={!newComment.trim() || loadingComment}
+                  className="h-9 px-4 bg-white text-background hover:bg-white/90 rounded-full"
+                >
+                  {loadingComment ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
+                </Button>
+              </div>
             </form>
             <div className="space-y-3">
               {comments.map((comment) => (
